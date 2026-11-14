@@ -51,12 +51,14 @@ export default function AdminView({
 
   const handleDeleteWorker = async (worker) => {
     if (!confirm(`Are you sure you want to remove ${worker.name} (${worker.id})?`)) return;
+    // Instant optimistic UI removal
+    setWorkersList(prev => prev.filter(w => w.id !== worker.id));
     try {
       await deleteWorker(worker.id);
-      loadWorkers();
       onRefreshToday();
     } catch (err) {
       alert(err.message || 'Failed to remove worker');
+      loadWorkers();
     }
   };
 

@@ -1,9 +1,15 @@
 import mongoose from 'mongoose';
 
-// Disable command buffering so operations NEVER hang for 10 seconds if disconnected
+// Disable command buffering so operations fail fast if not connected
 mongoose.set('bufferCommands', false);
 
-let cachedConnection = null;
+export const DEFAULT_MONGO_URI = 'mongodb://prathamvashisht3107_db_user:5neZqLna0uozzAjr@ac-cbp06zd-shard-00-00.it9khey.mongodb.net:27017,ac-cbp06zd-shard-00-01.it9khey.mongodb.net:27017,ac-cbp06zd-shard-00-02.it9khey.mongodb.net:27017/kranti_attendance?ssl=true&replicaSet=atlas-bvj6l9-shard-0&authSource=admin';
+
+// Global cached connection across serverless cold starts
+let cached = global._mongooseCache;
+if (!cached) {
+  cached = global._mongooseCache = { conn: null, promise: null };
+}
 
 // Schemas for MongoDB Atlas
 const WorkerSchema = new mongoose.Schema({
@@ -71,8 +77,6 @@ export const AttendanceModel = mongoose.models.Attendance || mongoose.model('Att
 export const SettingModel = mongoose.models.Setting || mongoose.model('Setting', SettingSchema);
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 
-export const DEFAULT_MONGO_URI = 'mongodb://prathamvashisht3107_db_user:5neZqLna0uozzAjr@ac-cbp06zd-shard-00-00.it9khey.mongodb.net:27017,ac-cbp06zd-shard-00-01.it9khey.mongodb.net:27017,ac-cbp06zd-shard-00-02.it9khey.mongodb.net:27017/kranti_attendance?ssl=true&replicaSet=atlas-bvj6l9-shard-0&authSource=admin';
-
 export function isMongoConnected() {
   return !!(mongoose.connection && mongoose.connection.readyState === 1);
 }
@@ -82,29 +86,27 @@ export async function connectMongo(uri = process.env.MONGODB_URI || DEFAULT_MONG
     return mongoose.connection;
   }
 
-  // If connection is already in progress, wait for it
-  if (mongoose.connection && mongoose.connection.readyState === 2) {
-    try {
-      await mongoose.connection.asPromise();
-      return mongoose.connection;
-    } catch (e) {}
-  }
-
-  const targetUri = uri || DEFAULT_MONGO_URI;
-
-  try {
-    const conn = await mongoose.connect(targetUri, {
-      serverSelectionTimeoutMS: 4000,
+  if (!cached.promise) {
+    const targetUri = uri || DEFAULT_MONGO_URI;
+    cached.promise = mongoose.connect(targetUri, {
+      serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 5000,
       maxPoolSize: 10,
-      socketTimeoutMS: 15000,
+    }).then(m => {
+      console.log('✅ Connected to MongoDB Atlas');
+      return m.connection;
+    }).catch(err => {
+      cached.promise = null;
+      console.error('❌ MongoDB Atlas connection error:', err.message);
+      return null;
     });
-    cachedConnection = conn;
-    console.log('✅ Connected to MongoDB Atlas successfully');
-    return conn;
+  }
+
+  try {
+    cached.conn = await cached.promise;
+    return cached.conn;
   } catch (err) {
-    console.error('❌ MongoDB Atlas connection error:', err.message);
+    cached.promise = null;
     return null;
   }
 }
-

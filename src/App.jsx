@@ -149,8 +149,47 @@ export default function App() {
   const handleSaveWorker = async (formData, workerId) => {
     if (workerId) {
       await updateWorker(workerId, formData);
+      setTodayData(prev => {
+        if (!prev) return prev;
+        const list = (prev.list || []).map(item => {
+          if (item.worker.id === workerId) {
+            return { ...item, worker: { ...item.worker, ...formData } };
+          }
+          return item;
+        });
+        return { ...prev, list };
+      });
     } else {
-      await createWorker(formData);
+      const newWorker = await createWorker(formData);
+      setTodayData(prev => {
+        if (!prev) return prev;
+        const exists = prev.list?.some(item => item.worker.id === newWorker.id);
+        if (exists) return prev;
+        const newEntry = {
+          worker: newWorker,
+          recordId: null,
+          date: prev.date,
+          punches: [],
+          firstIn: null,
+          lastOut: null,
+          totalHours: 0,
+          overtimeHours: 0,
+          status: 'ABSENT',
+          currentStatus: 'OUT',
+          isLate: false
+        };
+        const newList = [...(prev.list || []), newEntry];
+        return {
+          ...prev,
+          stats: {
+            ...prev.stats,
+            totalWorkers: newList.length,
+            absentCount: (prev.stats?.absentCount || 0) + 1,
+            outsideCount: (prev.stats?.outsideCount || 0) + 1
+          },
+          list: newList
+        };
+      });
     }
     loadTodayData();
   };

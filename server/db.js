@@ -21,7 +21,9 @@ const DATA_DIR = path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'database.json');
 
 if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (e) {}
 }
 
 const defaultData = {
@@ -62,8 +64,8 @@ const defaultData = {
 class Database {
   constructor() {
     this.data = this.loadLocal();
-    this.mongoConnected = false;
-    this.initMongo();
+    // Warm up connection in background without blocking server startup
+    connectMongo().catch(() => {});
   }
 
   loadLocal() {
@@ -80,9 +82,8 @@ class Database {
         };
       }
     } catch (err) {
-      console.error('Error loading database, resetting to default:', err);
+      // Ephemeral filesystem on Vercel is fine
     }
-    this.saveLocal(defaultData);
     return JSON.parse(JSON.stringify(defaultData));
   }
 
@@ -92,77 +93,8 @@ class Database {
       fs.writeFileSync(tempPath, JSON.stringify(dataToSave, null, 2), 'utf-8');
       fs.renameSync(tempPath, DB_FILE);
     } catch (err) {
-      // On Vercel serverless, filesystem is read-only, which is expected
+      // Read-only filesystem on Vercel, ignore
     }
-  }
-
-  async initMongo() {
-    if (!process.env.MONGODB_URI) return;
-    try {
-      const conn = await connectMongo();
-      if (conn) {
-        this.mongoConnected = true;
-        await this.syncFromMongo();
-      }
-    } catch (err) {
-      console.warn('MongoDB init warning:', err.message);
-    }
-  }
-
-  async syncFromMongo() {
-    try {
-      // 1. Settings
-      const cloudSettings = await SettingModel.findOne({ key: 'main_settings' });
-      if (cloudSettings) {
-        this.data.settings = { ...this.data.settings, ...cloudSettings.toObject() };
-      } else {
-        await SettingModel.findOneAndUpdate(
-          { key: 'main_settings' },
-          { $set: { key: 'main_settings', ...this.data.settings } },
-          { upsert: true, new: true }
-        );
-      }
-
-      // 2. Users
-      const cloudUsers = await UserModel.find({});
-      if (cloudUsers && cloudUsers.length > 0) {
-        this.data.users = cloudUsers.map(u => u.toObject());
-      } else {
-        for (const u of this.data.users) {
-          await UserModel.findOneAndUpdate({ username: u.username }, u, { upsert: true });
-        }
-      }
-
-      // 3. Workers
-      const cloudWorkers = await WorkerModel.find({});
-      this.data.workers = (cloudWorkers || []).map(w => w.toObject());
-
-      // 4. Attendance
-      const cloudAttendance = await AttendanceModel.find({});
-      this.data.attendance = (cloudAttendance || []).map(a => a.toObject());
-
-      this.saveLocal();
-    } catch (err) {
-      console.error('Error syncing with MongoDB:', err);
-    }
-  }
-
-  async ensureMongoReady() {
-    if (this.mongoConnected && isMongoConnected()) return true;
-    try {
-      const conn = await connectMongo();
-      if (conn) {
-        this.mongoConnected = true;
-        if (!this.initialSynced) {
-          this.initialSynced = true;
-          this.syncFromMongo().catch(console.warn);
-        }
-        return true;
-      }
-    } catch (e) {
-      console.warn('ensureMongoReady warning:', e.message);
-    }
-    return false;
   }
 
   getUsers() {
@@ -179,47 +111,43 @@ class Database {
   }
 
   async updateSettings(newSettings) {
-    await this.ensureMongoReady();
     this.data.settings = { ...this.data.settings, ...newSettings };
     this.saveLocal();
 
-    if (this.mongoConnected) {
-      SettingModel.findOneAndUpdate(
+    try {
+      await connectMongo();
+      await SettingModel.findOneAndUpdate(
         { key: 'main_settings' }, 
         { $set: { key: 'main_settings', ...this.data.settings } }, 
         { upsert: true, new: true }
-      ).catch(e => console.error('Mongo updateSettings error:', e));
+      );
+    } catch (e) {
+      console.warn('Mongo updateSettings warning:', e.message);
     }
     return this.data.settings;
   }
 
   async getWorkers() {
-    await this.ensureMongoReady();
-    if (this.data.workers && this.data.workers.length > 0) {
-      return this.data.workers;
-    }
-    if (this.mongoConnected) {
-      try {
-        const cloudWorkers = await WorkerModel.find({ status: { $ne: 'deleted' } }).lean();
-        if (cloudWorkers && cloudWorkers.length > 0) {
-          this.data.workers = cloudWorkers;
-          this.saveLocal();
-        }
-      } catch (err) {
-        console.warn('Mongo getWorkers error:', err);
+    try {
+      await connectMongo();
+      const cloudWorkers = await WorkerModel.find({ status: { $ne: 'deleted' } }).lean();
+      if (cloudWorkers && cloudWorkers.length > 0) {
+        this.data.workers = cloudWorkers;
+        this.saveLocal();
+        return cloudWorkers;
       }
+    } catch (err) {
+      console.warn('Mongo getWorkers warning, using fallback:', err.message);
     }
     return this.data.workers || [];
   }
 
   async findWorker(workerId) {
     if (!workerId) return null;
-    await this.ensureMongoReady();
-
     const clean = String(workerId).trim().toUpperCase();
     const cleanDigits = clean.replace(/\D/g, '');
 
-    // 1. Search in-memory cache (Instant 0ms)
+    // 1. Search memory
     let found = (this.data.workers || []).find(w => {
       const wId = String(w.id || '').toUpperCase();
       const wDigits = wId.replace(/\D/g, '');
@@ -229,30 +157,29 @@ class Database {
     });
     if (found) return found;
 
-    // 2. Search MongoDB Atlas directly
-    if (this.mongoConnected) {
-      try {
-        const query = {
-          $or: [
-            { id: clean },
-            { id: `KRA-${clean}` },
-            { id: new RegExp(`^${clean}$`, 'i') }
-          ]
-        };
-        if (cleanDigits) {
-          query.$or.push({ id: new RegExp(cleanDigits, 'i') });
-        }
-        const doc = await WorkerModel.findOne(query).lean();
-        if (doc) {
-          if (!this.data.workers.some(w => w.id === doc.id)) {
-            this.data.workers.push(doc);
-            this.saveLocal();
-          }
-          return doc;
-        }
-      } catch (err) {
-        console.warn('Mongo findWorker error:', err);
+    // 2. Search MongoDB Atlas
+    try {
+      await connectMongo();
+      const query = {
+        $or: [
+          { id: clean },
+          { id: `KRA-${clean}` },
+          { id: new RegExp(`^${clean}$`, 'i') }
+        ]
+      };
+      if (cleanDigits) {
+        query.$or.push({ id: new RegExp(cleanDigits, 'i') });
       }
+      const doc = await WorkerModel.findOne(query).lean();
+      if (doc) {
+        if (!this.data.workers.some(w => w.id === doc.id)) {
+          this.data.workers.push(doc);
+          this.saveLocal();
+        }
+        return doc;
+      }
+    } catch (err) {
+      console.warn('Mongo findWorker error:', err.message);
     }
 
     return null;
@@ -264,6 +191,7 @@ class Database {
     const cleanId = String(worker.id).trim().toUpperCase();
     const cleanWorker = { ...worker, id: cleanId };
 
+    // Update in-memory array immediately
     const idx = (this.data.workers || []).findIndex(w => String(w.id || '').toUpperCase() === cleanId);
     if (idx >= 0) {
       this.data.workers[idx] = cleanWorker;
@@ -272,25 +200,17 @@ class Database {
     }
     this.saveLocal();
 
-    // Persist to MongoDB Atlas safely without ever blocking or crashing the user
-    if (isMongoConnected()) {
-      try {
-        await WorkerModel.findOneAndUpdate(
-          { id: cleanId },
-          { $set: cleanWorker },
-          { upsert: true, new: true }
-        );
-        console.log(`✅ Permanently saved worker ${cleanId} (${cleanWorker.name}) to MongoDB Atlas`);
-      } catch (err) {
-        console.warn('Mongo addWorker write error:', err.message);
-      }
-    } else {
-      // Background retry when connection establishes
-      connectMongo().then(conn => {
-        if (conn) {
-          WorkerModel.findOneAndUpdate({ id: cleanId }, { $set: cleanWorker }, { upsert: true }).catch(console.warn);
-        }
-      }).catch(console.warn);
+    // Persist directly and await in MongoDB Atlas
+    try {
+      await connectMongo();
+      await WorkerModel.findOneAndUpdate(
+        { id: cleanId },
+        { $set: cleanWorker },
+        { upsert: true, new: true }
+      );
+      console.log(`✅ Permanently saved worker ${cleanId} (${cleanWorker.name}) to MongoDB Atlas`);
+    } catch (err) {
+      console.error('Mongo addWorker error:', err.message);
     }
 
     return cleanWorker;
@@ -304,17 +224,16 @@ class Database {
       this.saveLocal();
     }
 
-    if (isMongoConnected()) {
-      try {
-        const updated = await WorkerModel.findOneAndUpdate(
-          { id: cleanId },
-          { $set: updates },
-          { new: true }
-        );
-        if (updated) return updated.toObject();
-      } catch (err) {
-        console.warn('Mongo updateWorker error:', err.message);
-      }
+    try {
+      await connectMongo();
+      const updated = await WorkerModel.findOneAndUpdate(
+        { id: cleanId },
+        { $set: updates },
+        { new: true }
+      );
+      if (updated) return updated.toObject();
+    } catch (err) {
+      console.warn('Mongo updateWorker error:', err.message);
     }
     return idx !== -1 ? this.data.workers[idx] : null;
   }
@@ -324,7 +243,7 @@ class Database {
 
     const cleanId = String(id).trim().toUpperCase();
 
-    // 1. Remove from in-memory workers array immediately
+    // 1. Remove from memory immediately
     const idx = (this.data.workers || []).findIndex(w => 
       String(w.id || '').toUpperCase() === cleanId ||
       String(w.id || '').replace(/\D/g, '') === cleanId.replace(/\D/g, '')
@@ -334,84 +253,70 @@ class Database {
       removed = this.data.workers.splice(idx, 1)[0];
     }
 
-    // 2. Remove any attendance records for this worker from memory
     this.data.attendance = (this.data.attendance || []).filter(a => 
       String(a.workerId || '').toUpperCase() !== cleanId
     );
     this.saveLocal();
 
-    // 3. Remove from MongoDB Atlas permanently
-    if (isMongoConnected()) {
-      try {
-        await Promise.all([
-          WorkerModel.deleteMany({
-            $or: [
-              { id: cleanId },
-              { id: id },
-              { id: new RegExp(`^${cleanId}$`, 'i') }
-            ]
-          }),
-          AttendanceModel.deleteMany({
-            $or: [
-              { workerId: cleanId },
-              { workerId: id },
-              { workerId: new RegExp(`^${cleanId}$`, 'i') }
-            ]
-          })
-        ]);
-        console.log(`✅ Permanently deleted worker ${cleanId} from MongoDB Atlas`);
-      } catch (err) {
-        console.warn('Mongo deleteWorker error:', err.message);
-      }
-    } else {
-      connectMongo().then(conn => {
-        if (conn) {
-          WorkerModel.deleteMany({ id: cleanId }).catch(console.warn);
-          AttendanceModel.deleteMany({ workerId: cleanId }).catch(console.warn);
-        }
-      }).catch(console.warn);
+    // 2. Remove permanently from MongoDB Atlas
+    try {
+      await connectMongo();
+      await Promise.all([
+        WorkerModel.deleteMany({
+          $or: [
+            { id: cleanId },
+            { id: id },
+            { id: new RegExp(`^${cleanId}$`, 'i') }
+          ]
+        }),
+        AttendanceModel.deleteMany({
+          $or: [
+            { workerId: cleanId },
+            { workerId: id },
+            { workerId: new RegExp(`^${cleanId}$`, 'i') }
+          ]
+        })
+      ]);
+      console.log(`✅ Permanently deleted worker ${cleanId} from MongoDB Atlas`);
+    } catch (err) {
+      console.error('Mongo deleteWorker error:', err.message);
     }
 
     return removed || { id: cleanId };
   }
 
   async getAttendanceByDate(dateStr) {
-    await this.ensureMongoReady();
-    if (this.mongoConnected) {
-      try {
-        const docs = await AttendanceModel.find({ date: dateStr });
-        if (docs && docs.length > 0) {
-          // Merge with memory
-          for (const d of docs) {
-            const dObj = d.toObject();
-            const idx = this.data.attendance.findIndex(a => a.id === dObj.id);
-            if (idx >= 0) this.data.attendance[idx] = dObj;
-            else this.data.attendance.push(dObj);
-          }
+    try {
+      await connectMongo();
+      const docs = await AttendanceModel.find({ date: dateStr }).lean();
+      if (docs && docs.length > 0) {
+        for (const d of docs) {
+          const idx = this.data.attendance.findIndex(a => a.id === d.id);
+          if (idx >= 0) this.data.attendance[idx] = d;
+          else this.data.attendance.push(d);
         }
-      } catch (err) {
-        console.warn('Mongo getAttendanceByDate error:', err);
+        return docs;
       }
+    } catch (err) {
+      console.warn('Mongo getAttendanceByDate error:', err.message);
     }
     return this.data.attendance.filter(a => a.date === dateStr);
   }
 
   async getAttendanceByMonth(yearMonth) {
-    await this.ensureMongoReady();
-    if (this.mongoConnected) {
-      try {
-        const docs = await AttendanceModel.find({ date: new RegExp(`^${yearMonth}`) });
-        if (docs && docs.length > 0) {
-          for (const d of docs) {
-            const dObj = d.toObject();
-            const idx = this.data.attendance.findIndex(a => a.id === dObj.id);
-            if (idx >= 0) this.data.attendance[idx] = dObj;
-            else this.data.attendance.push(dObj);
-          }
+    try {
+      await connectMongo();
+      const docs = await AttendanceModel.find({ date: new RegExp(`^${yearMonth}`) }).lean();
+      if (docs && docs.length > 0) {
+        for (const d of docs) {
+          const idx = this.data.attendance.findIndex(a => a.id === d.id);
+          if (idx >= 0) this.data.attendance[idx] = d;
+          else this.data.attendance.push(d);
         }
-      } catch (err) {
-        console.warn('Mongo getAttendanceByMonth error:', err);
+        return docs;
       }
+    } catch (err) {
+      console.warn('Mongo getAttendanceByMonth error:', err.message);
     }
     return this.data.attendance.filter(a => a.date.startsWith(yearMonth));
   }
@@ -421,7 +326,6 @@ class Database {
   }
 
   async saveAttendanceRecord(record) {
-    await this.ensureMongoReady();
     const idx = this.data.attendance.findIndex(a => a.id === record.id);
     if (idx !== -1) {
       this.data.attendance[idx] = record;
@@ -430,16 +334,15 @@ class Database {
     }
     this.saveLocal();
 
-    if (this.mongoConnected) {
-      try {
-        await AttendanceModel.findOneAndUpdate(
-          { id: record.id }, 
-          { $set: record }, 
-          { upsert: true, new: true }
-        );
-      } catch (err) {
-        console.error('Mongo saveAttendanceRecord error:', err);
-      }
+    try {
+      await connectMongo();
+      await AttendanceModel.findOneAndUpdate(
+        { id: record.id }, 
+        { $set: record }, 
+        { upsert: true, new: true }
+      );
+    } catch (err) {
+      console.error('Mongo saveAttendanceRecord error:', err.message);
     }
     return record;
   }
