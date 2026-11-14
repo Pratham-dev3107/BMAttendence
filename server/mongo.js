@@ -1,5 +1,8 @@
 import mongoose from 'mongoose';
 
+// Disable command buffering so operations NEVER hang for 10 seconds if disconnected
+mongoose.set('bufferCommands', false);
+
 let cachedConnection = null;
 
 // Schemas for MongoDB Atlas
@@ -75,17 +78,26 @@ export function isMongoConnected() {
 }
 
 export async function connectMongo(uri = process.env.MONGODB_URI || DEFAULT_MONGO_URI) {
-  if (cachedConnection && mongoose.connection.readyState === 1) {
-    return cachedConnection;
+  if (mongoose.connection && mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  // If connection is already in progress, wait for it
+  if (mongoose.connection && mongoose.connection.readyState === 2) {
+    try {
+      await mongoose.connection.asPromise();
+      return mongoose.connection;
+    } catch (e) {}
   }
 
   const targetUri = uri || DEFAULT_MONGO_URI;
 
   try {
     const conn = await mongoose.connect(targetUri, {
-      serverSelectionTimeoutMS: 3000,
+      serverSelectionTimeoutMS: 4000,
       connectTimeoutMS: 5000,
       maxPoolSize: 10,
+      socketTimeoutMS: 15000,
     });
     cachedConnection = conn;
     console.log('✅ Connected to MongoDB Atlas successfully');

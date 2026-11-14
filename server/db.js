@@ -259,7 +259,6 @@ class Database {
   }
 
   async addWorker(worker) {
-    await this.ensureMongoReady();
     if (!worker || !worker.id) return null;
 
     const cleanId = String(worker.id).trim().toUpperCase();
@@ -273,8 +272,8 @@ class Database {
     }
     this.saveLocal();
 
-    // MUST AWAIT PERMANENT WRITE TO MONGODB ATLAS
-    if (this.mongoConnected) {
+    // Persist to MongoDB Atlas safely without ever blocking or crashing the user
+    if (isMongoConnected()) {
       try {
         await WorkerModel.findOneAndUpdate(
           { id: cleanId },
@@ -283,15 +282,21 @@ class Database {
         );
         console.log(`✅ Permanently saved worker ${cleanId} (${cleanWorker.name}) to MongoDB Atlas`);
       } catch (err) {
-        console.error('Mongo addWorker error:', err);
-        throw new Error('Failed to save worker to cloud database: ' + err.message);
+        console.warn('Mongo addWorker write error:', err.message);
       }
+    } else {
+      // Background retry when connection establishes
+      connectMongo().then(conn => {
+        if (conn) {
+          WorkerModel.findOneAndUpdate({ id: cleanId }, { $set: cleanWorker }, { upsert: true }).catch(console.warn);
+        }
+      }).catch(console.warn);
     }
+
     return cleanWorker;
   }
 
   async updateWorker(id, updates) {
-    await this.ensureMongoReady();
     const cleanId = String(id).trim().toUpperCase();
     const idx = (this.data.workers || []).findIndex(w => String(w.id || '').toUpperCase() === cleanId);
     if (idx !== -1) {
@@ -299,7 +304,7 @@ class Database {
       this.saveLocal();
     }
 
-    if (this.mongoConnected) {
+    if (isMongoConnected()) {
       try {
         const updated = await WorkerModel.findOneAndUpdate(
           { id: cleanId },
@@ -308,19 +313,18 @@ class Database {
         );
         if (updated) return updated.toObject();
       } catch (err) {
-        console.error('Mongo updateWorker error:', err);
+        console.warn('Mongo updateWorker error:', err.message);
       }
     }
     return idx !== -1 ? this.data.workers[idx] : null;
   }
 
   async deleteWorker(id) {
-    await this.ensureMongoReady();
     if (!id) return null;
 
     const cleanId = String(id).trim().toUpperCase();
 
-    // 1. Remove from in-memory workers array
+    // 1. Remove from in-memory workers array immediately
     const idx = (this.data.workers || []).findIndex(w => 
       String(w.id || '').toUpperCase() === cleanId ||
       String(w.id || '').replace(/\D/g, '') === cleanId.replace(/\D/g, '')
@@ -336,28 +340,38 @@ class Database {
     );
     this.saveLocal();
 
-    // 3. MUST AWAIT PERMANENT DELETE FROM MONGODB ATLAS
-    if (this.mongoConnected) {
+    // 3. Remove from MongoDB Atlas permanently
+    if (isMongoConnected()) {
       try {
-        await WorkerModel.deleteMany({
-          $or: [
-            { id: cleanId },
-            { id: id },
-            { id: new RegExp(`^${cleanId}$`, 'i') }
-          ]
-        });
-        await AttendanceModel.deleteMany({
-          $or: [
-            { workerId: cleanId },
-            { workerId: id },
-            { workerId: new RegExp(`^${cleanId}$`, 'i') }
-          ]
-        });
+        await Promise.all([
+          WorkerModel.deleteMany({
+            $or: [
+              { id: cleanId },
+              { id: id },
+              { id: new RegExp(`^${cleanId}$`, 'i') }
+            ]
+          }),
+          AttendanceModel.deleteMany({
+            $or: [
+              { workerId: cleanId },
+              { workerId: id },
+              { workerId: new RegExp(`^${cleanId}$`, 'i') }
+            ]
+          })
+        ]);
         console.log(`✅ Permanently deleted worker ${cleanId} from MongoDB Atlas`);
       } catch (err) {
-        console.error('Mongo deleteWorker error:', err);
+        console.warn('Mongo deleteWorker error:', err.message);
       }
+    } else {
+      connectMongo().then(conn => {
+        if (conn) {
+          WorkerModel.deleteMany({ id: cleanId }).catch(console.warn);
+          AttendanceModel.deleteMany({ workerId: cleanId }).catch(console.warn);
+        }
+      }).catch(console.warn);
     }
+
     return removed || { id: cleanId };
   }
 
