@@ -68,16 +68,20 @@ export const AttendanceModel = mongoose.models.Attendance || mongoose.model('Att
 export const SettingModel = mongoose.models.Setting || mongoose.model('Setting', SettingSchema);
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 
-export async function connectMongo(uri = process.env.MONGODB_URI) {
-  if (!uri) return null;
+export const DEFAULT_MONGO_URI = 'mongodb://prathamvashisht3107_db_user:5neZqLna0uozzAjr@ac-cbp06zd-shard-00-00.it9khey.mongodb.net:27017,ac-cbp06zd-shard-00-01.it9khey.mongodb.net:27017,ac-cbp06zd-shard-00-02.it9khey.mongodb.net:27017/kranti_attendance?ssl=true&replicaSet=atlas-bvj6l9-shard-0&authSource=admin';
 
+export async function connectMongo(uri = process.env.MONGODB_URI || DEFAULT_MONGO_URI) {
   if (cachedConnection && mongoose.connection.readyState === 1) {
     return cachedConnection;
   }
 
+  const targetUri = uri || DEFAULT_MONGO_URI;
+
   try {
-    const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000,
+    const conn = await mongoose.connect(targetUri, {
+      serverSelectionTimeoutMS: 3000,
+      connectTimeoutMS: 5000,
+      maxPoolSize: 10,
     });
     cachedConnection = conn;
     console.log('✅ Connected to MongoDB Atlas successfully');

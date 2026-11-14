@@ -146,13 +146,15 @@ class Database {
   }
 
   async ensureMongoReady() {
-    if (!process.env.MONGODB_URI) return false;
-    if (this.mongoConnected) return true;
+    if (this.mongoConnected && mongoose.connection.readyState === 1) return true;
     try {
       const conn = await connectMongo();
       if (conn) {
         this.mongoConnected = true;
-        await this.syncFromMongo();
+        if (!this.initialSynced) {
+          this.initialSynced = true;
+          this.syncFromMongo().catch(console.warn);
+        }
         return true;
       }
     } catch (e) {
@@ -180,26 +182,25 @@ class Database {
     this.saveLocal();
 
     if (this.mongoConnected) {
-      try {
-        await SettingModel.findOneAndUpdate(
-          { key: 'main_settings' }, 
-          { $set: { key: 'main_settings', ...this.data.settings } }, 
-          { upsert: true, new: true }
-        );
-      } catch (e) {
-        console.error('Mongo updateSettings error:', e);
-      }
+      SettingModel.findOneAndUpdate(
+        { key: 'main_settings' }, 
+        { $set: { key: 'main_settings', ...this.data.settings } }, 
+        { upsert: true, new: true }
+      ).catch(e => console.error('Mongo updateSettings error:', e));
     }
     return this.data.settings;
   }
 
   async getWorkers() {
     await this.ensureMongoReady();
+    if (this.data.workers && this.data.workers.length > 0) {
+      return this.data.workers;
+    }
     if (this.mongoConnected) {
       try {
-        const cloudWorkers = await WorkerModel.find({ status: { $ne: 'deleted' } });
+        const cloudWorkers = await WorkerModel.find({ status: { $ne: 'deleted' } }).lean();
         if (cloudWorkers && cloudWorkers.length > 0) {
-          this.data.workers = cloudWorkers.map(w => w.toObject());
+          this.data.workers = cloudWorkers;
           this.saveLocal();
         }
       } catch (err) {
@@ -216,7 +217,7 @@ class Database {
     const clean = String(workerId).trim().toUpperCase();
     const cleanDigits = clean.replace(/\D/g, '');
 
-    // 1. Search in-memory cache
+    // 1. Search in-memory cache (Instant 0ms)
     let found = (this.data.workers || []).find(w => {
       const wId = String(w.id || '').toUpperCase();
       const wDigits = wId.replace(/\D/g, '');
@@ -239,14 +240,13 @@ class Database {
         if (cleanDigits) {
           query.$or.push({ id: new RegExp(cleanDigits, 'i') });
         }
-        const doc = await WorkerModel.findOne(query);
+        const doc = await WorkerModel.findOne(query).lean();
         if (doc) {
-          const wObj = doc.toObject();
-          if (!this.data.workers.some(w => w.id === wObj.id)) {
-            this.data.workers.push(wObj);
+          if (!this.data.workers.some(w => w.id === doc.id)) {
+            this.data.workers.push(doc);
             this.saveLocal();
           }
-          return wObj;
+          return doc;
         }
       } catch (err) {
         console.warn('Mongo findWorker error:', err);
@@ -266,16 +266,13 @@ class Database {
     }
     this.saveLocal();
 
+    // Fast direct write to MongoDB Atlas
     if (this.mongoConnected) {
-      try {
-        await WorkerModel.findOneAndUpdate(
-          { id: worker.id },
-          { $set: worker },
-          { upsert: true, new: true }
-        );
-      } catch (err) {
-        console.error('Mongo addWorker error:', err);
-      }
+      WorkerModel.findOneAndUpdate(
+        { id: worker.id },
+        { $set: worker },
+        { upsert: true, new: true }
+      ).catch(err => console.error('Mongo addWorker error:', err));
     }
     return worker;
   }
@@ -289,16 +286,11 @@ class Database {
     }
 
     if (this.mongoConnected) {
-      try {
-        const updated = await WorkerModel.findOneAndUpdate(
-          { id },
-          { $set: updates },
-          { new: true }
-        );
-        if (updated) return updated.toObject();
-      } catch (err) {
-        console.error('Mongo updateWorker error:', err);
-      }
+      WorkerModel.findOneAndUpdate(
+        { id },
+        { $set: updates },
+        { new: true }
+      ).catch(err => console.error('Mongo updateWorker error:', err));
     }
     return idx !== -1 ? this.data.workers[idx] : null;
   }
@@ -313,11 +305,7 @@ class Database {
     }
 
     if (this.mongoConnected) {
-      try {
-        await WorkerModel.deleteOne({ id });
-      } catch (err) {
-        console.error('Mongo deleteWorker error:', err);
-      }
+      WorkerModel.deleteOne({ id }).catch(err => console.error('Mongo deleteWorker error:', err));
     }
     return removed;
   }

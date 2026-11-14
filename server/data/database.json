@@ -61,6 +61,20 @@
       "rate": 550,
       "status": "active",
       "wageType": "daily"
+    },
+    {
+      "_id": "6af80e8ad87fab70e7dbacb8",
+      "id": "KRA-104",
+      "__v": 0,
+      "createdAt": "2026-11-14",
+      "department": "Fabrication",
+      "designation": "Helper",
+      "name": "abb",
+      "phone": "9601147389",
+      "photo": "",
+      "rate": 600,
+      "status": "active",
+      "wageType": "daily"
     }
   ],
   "attendance": [
@@ -127,7 +141,8 @@
           "time": "12:58:06",
           "timestamp": 1794641286646,
           "method": "QR",
-          "markedBy": "Gatekeeper"
+          "markedBy": "Gatekeeper",
+          "_id": "6af80d86b5a876b5a8eb67dc"
         }
       ],
       "status": "PRESENT",
@@ -135,9 +150,16 @@
       "workerId": "KRA-101"
     },
     {
+      "_id": "6af80d8ad87fab70e7dbacb5",
       "id": "6e082ffd-b6ae-4135-ba67-94813148c338",
-      "workerId": "KRA-102",
+      "__v": 0,
+      "currentStatus": "IN",
       "date": "2026-11-14",
+      "firstIn": "12:58:10",
+      "lastOut": null,
+      "manualStatus": null,
+      "notes": "",
+      "overtimeHours": 0,
       "punches": [
         {
           "id": "105c7571-6a49-460c-926d-53f1f3175147",
@@ -145,17 +167,13 @@
           "time": "12:58:10",
           "timestamp": 1794641290944,
           "method": "QR",
-          "markedBy": "Gatekeeper"
+          "markedBy": "Gatekeeper",
+          "_id": "6af80d8ab5a876b5a8eb67e3"
         }
       ],
-      "manualStatus": null,
-      "notes": "",
-      "firstIn": "12:58:10",
-      "lastOut": null,
-      "totalHours": 0,
-      "overtimeHours": 0,
       "status": "PRESENT",
-      "currentStatus": "IN"
+      "totalHours": 0,
+      "workerId": "KRA-102"
     }
   ],
   "advances": []

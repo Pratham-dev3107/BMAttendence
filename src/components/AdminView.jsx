@@ -47,7 +47,7 @@ export default function AdminView({
     if (adminTab === 'WORKERS') {
       loadWorkers();
     }
-  }, [adminTab]);
+  }, [adminTab, todayData]);
 
   const handleDeleteWorker = async (worker) => {
     if (!confirm(`Are you sure you want to remove ${worker.name} (${worker.id})?`)) return;
