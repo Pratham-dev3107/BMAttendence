@@ -145,6 +145,22 @@ class Database {
     }
   }
 
+  async ensureMongoReady() {
+    if (!process.env.MONGODB_URI) return false;
+    if (this.mongoConnected) return true;
+    try {
+      const conn = await connectMongo();
+      if (conn) {
+        this.mongoConnected = true;
+        await this.syncFromMongo();
+        return true;
+      }
+    } catch (e) {
+      console.warn('ensureMongoReady warning:', e.message);
+    }
+    return false;
+  }
+
   getUsers() {
     return this.data.users || defaultData.users;
   }
@@ -158,67 +174,192 @@ class Database {
     return this.data.settings;
   }
 
-  updateSettings(newSettings) {
+  async updateSettings(newSettings) {
+    await this.ensureMongoReady();
     this.data.settings = { ...this.data.settings, ...newSettings };
     this.saveLocal();
 
     if (this.mongoConnected) {
-      SettingModel.findOneAndUpdate(
-        { key: 'main_settings' }, 
-        { key: 'main_settings', ...this.data.settings }, 
-        { upsert: true }
-      ).catch(console.error);
+      try {
+        await SettingModel.findOneAndUpdate(
+          { key: 'main_settings' }, 
+          { $set: { key: 'main_settings', ...this.data.settings } }, 
+          { upsert: true, new: true }
+        );
+      } catch (e) {
+        console.error('Mongo updateSettings error:', e);
+      }
     }
     return this.data.settings;
   }
 
-  getWorkers() {
-    return this.data.workers;
+  async getWorkers() {
+    await this.ensureMongoReady();
+    if (this.mongoConnected) {
+      try {
+        const cloudWorkers = await WorkerModel.find({ status: { $ne: 'deleted' } });
+        if (cloudWorkers && cloudWorkers.length > 0) {
+          this.data.workers = cloudWorkers.map(w => w.toObject());
+          this.saveLocal();
+        }
+      } catch (err) {
+        console.warn('Mongo getWorkers error:', err);
+      }
+    }
+    return this.data.workers || [];
   }
 
-  addWorker(worker) {
-    this.data.workers.push(worker);
+  async findWorker(workerId) {
+    if (!workerId) return null;
+    await this.ensureMongoReady();
+
+    const clean = String(workerId).trim().toUpperCase();
+    const cleanDigits = clean.replace(/\D/g, '');
+
+    // 1. Search in-memory cache
+    let found = (this.data.workers || []).find(w => {
+      const wId = String(w.id || '').toUpperCase();
+      const wDigits = wId.replace(/\D/g, '');
+      return wId === clean || 
+             wId === `KRA-${clean}` || 
+             (cleanDigits && wDigits === cleanDigits);
+    });
+    if (found) return found;
+
+    // 2. Search MongoDB Atlas directly
+    if (this.mongoConnected) {
+      try {
+        const query = {
+          $or: [
+            { id: clean },
+            { id: `KRA-${clean}` },
+            { id: new RegExp(`^${clean}$`, 'i') }
+          ]
+        };
+        if (cleanDigits) {
+          query.$or.push({ id: new RegExp(cleanDigits, 'i') });
+        }
+        const doc = await WorkerModel.findOne(query);
+        if (doc) {
+          const wObj = doc.toObject();
+          if (!this.data.workers.some(w => w.id === wObj.id)) {
+            this.data.workers.push(wObj);
+            this.saveLocal();
+          }
+          return wObj;
+        }
+      } catch (err) {
+        console.warn('Mongo findWorker error:', err);
+      }
+    }
+
+    return null;
+  }
+
+  async addWorker(worker) {
+    await this.ensureMongoReady();
+    const idx = this.data.workers.findIndex(w => w.id === worker.id);
+    if (idx >= 0) {
+      this.data.workers[idx] = worker;
+    } else {
+      this.data.workers.push(worker);
+    }
     this.saveLocal();
 
     if (this.mongoConnected) {
-      WorkerModel.create(worker).catch(console.error);
+      try {
+        await WorkerModel.findOneAndUpdate(
+          { id: worker.id },
+          { $set: worker },
+          { upsert: true, new: true }
+        );
+      } catch (err) {
+        console.error('Mongo addWorker error:', err);
+      }
     }
     return worker;
   }
 
-  updateWorker(id, updates) {
+  async updateWorker(id, updates) {
+    await this.ensureMongoReady();
     const idx = this.data.workers.findIndex(w => w.id === id);
     if (idx !== -1) {
       this.data.workers[idx] = { ...this.data.workers[idx], ...updates };
       this.saveLocal();
-
-      if (this.mongoConnected) {
-        WorkerModel.findOneAndUpdate({ id }, updates).catch(console.error);
-      }
-      return this.data.workers[idx];
     }
-    return null;
+
+    if (this.mongoConnected) {
+      try {
+        const updated = await WorkerModel.findOneAndUpdate(
+          { id },
+          { $set: updates },
+          { new: true }
+        );
+        if (updated) return updated.toObject();
+      } catch (err) {
+        console.error('Mongo updateWorker error:', err);
+      }
+    }
+    return idx !== -1 ? this.data.workers[idx] : null;
   }
 
-  deleteWorker(id) {
+  async deleteWorker(id) {
+    await this.ensureMongoReady();
     const idx = this.data.workers.findIndex(w => w.id === id);
+    let removed = null;
     if (idx !== -1) {
-      const removed = this.data.workers.splice(idx, 1);
+      removed = this.data.workers.splice(idx, 1)[0];
       this.saveLocal();
-
-      if (this.mongoConnected) {
-        WorkerModel.deleteOne({ id }).catch(console.error);
-      }
-      return removed[0];
     }
-    return null;
+
+    if (this.mongoConnected) {
+      try {
+        await WorkerModel.deleteOne({ id });
+      } catch (err) {
+        console.error('Mongo deleteWorker error:', err);
+      }
+    }
+    return removed;
   }
 
-  getAttendanceByDate(dateStr) {
+  async getAttendanceByDate(dateStr) {
+    await this.ensureMongoReady();
+    if (this.mongoConnected) {
+      try {
+        const docs = await AttendanceModel.find({ date: dateStr });
+        if (docs && docs.length > 0) {
+          // Merge with memory
+          for (const d of docs) {
+            const dObj = d.toObject();
+            const idx = this.data.attendance.findIndex(a => a.id === dObj.id);
+            if (idx >= 0) this.data.attendance[idx] = dObj;
+            else this.data.attendance.push(dObj);
+          }
+        }
+      } catch (err) {
+        console.warn('Mongo getAttendanceByDate error:', err);
+      }
+    }
     return this.data.attendance.filter(a => a.date === dateStr);
   }
 
-  getAttendanceByMonth(yearMonth) {
+  async getAttendanceByMonth(yearMonth) {
+    await this.ensureMongoReady();
+    if (this.mongoConnected) {
+      try {
+        const docs = await AttendanceModel.find({ date: new RegExp(`^${yearMonth}`) });
+        if (docs && docs.length > 0) {
+          for (const d of docs) {
+            const dObj = d.toObject();
+            const idx = this.data.attendance.findIndex(a => a.id === dObj.id);
+            if (idx >= 0) this.data.attendance[idx] = dObj;
+            else this.data.attendance.push(dObj);
+          }
+        }
+      } catch (err) {
+        console.warn('Mongo getAttendanceByMonth error:', err);
+      }
+    }
     return this.data.attendance.filter(a => a.date.startsWith(yearMonth));
   }
 
@@ -226,7 +367,8 @@ class Database {
     return this.data.attendance.find(a => a.workerId === workerId && a.date === dateStr);
   }
 
-  saveAttendanceRecord(record) {
+  async saveAttendanceRecord(record) {
+    await this.ensureMongoReady();
     const idx = this.data.attendance.findIndex(a => a.id === record.id);
     if (idx !== -1) {
       this.data.attendance[idx] = record;
@@ -236,7 +378,15 @@ class Database {
     this.saveLocal();
 
     if (this.mongoConnected) {
-      AttendanceModel.findOneAndUpdate({ id: record.id }, record, { upsert: true }).catch(console.error);
+      try {
+        await AttendanceModel.findOneAndUpdate(
+          { id: record.id }, 
+          { $set: record }, 
+          { upsert: true, new: true }
+        );
+      } catch (err) {
+        console.error('Mongo saveAttendanceRecord error:', err);
+      }
     }
     return record;
   }

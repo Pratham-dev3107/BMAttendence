@@ -35,7 +35,34 @@
     "key": "main_settings",
     "__v": 0
   },
-  "workers": [],
+  "workers": [
+    {
+      "_id": "6af80cf2d87fab70e7dbacb1",
+      "id": "KRA-101",
+      "createdAt": "2026-11-14",
+      "department": "Production",
+      "designation": "Machine Operator",
+      "name": "Ramesh Kumar",
+      "phone": "9876543210",
+      "photo": "",
+      "rate": 650,
+      "status": "active",
+      "wageType": "daily"
+    },
+    {
+      "_id": "6af80cf2d87fab70e7dbacb2",
+      "id": "KRA-102",
+      "createdAt": "2026-11-14",
+      "department": "Maintenance",
+      "designation": "Technician",
+      "name": "Suresh Sharma",
+      "phone": "9812345678",
+      "photo": "",
+      "rate": 550,
+      "status": "active",
+      "wageType": "daily"
+    }
+  ],
   "attendance": [
     {
       "_id": "6af804add87fab70e7dbac8d",
@@ -93,11 +120,42 @@
           "method": "QR",
           "markedBy": "Gatekeeper",
           "_id": "6af808c8eac3910f772fcf89"
+        },
+        {
+          "id": "4f9be3d6-95ca-42f9-bf40-3478af9c8428",
+          "type": "IN",
+          "time": "12:58:06",
+          "timestamp": 1794641286646,
+          "method": "QR",
+          "markedBy": "Gatekeeper"
         }
       ],
       "status": "PRESENT",
       "totalHours": 0,
       "workerId": "KRA-101"
+    },
+    {
+      "id": "6e082ffd-b6ae-4135-ba67-94813148c338",
+      "workerId": "KRA-102",
+      "date": "2026-11-14",
+      "punches": [
+        {
+          "id": "105c7571-6a49-460c-926d-53f1f3175147",
+          "type": "IN",
+          "time": "12:58:10",
+          "timestamp": 1794641290944,
+          "method": "QR",
+          "markedBy": "Gatekeeper"
+        }
+      ],
+      "manualStatus": null,
+      "notes": "",
+      "firstIn": "12:58:10",
+      "lastOut": null,
+      "totalHours": 0,
+      "overtimeHours": 0,
+      "status": "PRESENT",
+      "currentStatus": "IN"
     }
   ],
   "advances": []

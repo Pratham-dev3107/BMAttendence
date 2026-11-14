@@ -87,11 +87,12 @@ function calculateAttendanceMetrics(punches, settings, dateStr) {
 }
 
 // GET /api/attendance/today - Get attendance status for all workers today (IST)
-router.get('/today', (req, res) => {
+router.get('/today', async (req, res) => {
   const todayStr = req.query.date || getNowIST().format('YYYY-MM-DD');
   const settings = db.getSettings();
-  const workers = db.getWorkers().filter(w => w.status === 'active');
-  const todayRecords = db.getAttendanceByDate(todayStr);
+  const allWorkers = await db.getWorkers();
+  const workers = allWorkers.filter(w => w.status === 'active');
+  const todayRecords = await db.getAttendanceByDate(todayStr);
 
   const workerAttendanceList = workers.map(worker => {
     const record = todayRecords.find(r => r.workerId === worker.id);
@@ -137,7 +138,7 @@ router.get('/today', (req, res) => {
 });
 
 // POST /api/attendance/punch - Record In/Out punch with exact local IST time
-router.post('/punch', (req, res) => {
+router.post('/punch', async (req, res) => {
   try {
     const { workerId, type, method = 'QR', markedBy = 'Gatekeeper', date, time, force = false } = req.body;
 
@@ -145,7 +146,7 @@ router.post('/punch', (req, res) => {
       return res.status(400).json({ error: 'Worker ID is required' });
     }
 
-    const worker = db.getWorkers().find(w => w.id.toUpperCase() === workerId.toUpperCase());
+    const worker = await db.findWorker(workerId);
     if (!worker) {
       return res.status(404).json({ error: `Worker with ID "${workerId}" not found in system.` });
     }
@@ -257,7 +258,7 @@ router.post('/punch', (req, res) => {
     record.status = record.manualStatus || metrics.status;
     record.currentStatus = metrics.currentStatus;
 
-    db.saveAttendanceRecord(record);
+    await db.saveAttendanceRecord(record);
 
     res.json({
       success: true,
@@ -274,7 +275,7 @@ router.post('/punch', (req, res) => {
 });
 
 // POST /api/attendance/manual-override - Admin manual correction
-router.post('/manual-override', (req, res) => {
+router.post('/manual-override', async (req, res) => {
   const { workerId, date, status, firstIn, lastOut, totalHours, overtimeHours, notes } = req.body;
 
   if (!workerId || !date) {
@@ -308,7 +309,7 @@ router.post('/manual-override', (req, res) => {
   if (overtimeHours !== undefined) record.overtimeHours = Number(overtimeHours);
   record.notes = notes || record.notes;
 
-  db.saveAttendanceRecord(record);
+  await db.saveAttendanceRecord(record);
 
   res.json({ success: true, record });
 });

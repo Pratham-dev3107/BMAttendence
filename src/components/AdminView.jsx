@@ -3,7 +3,7 @@ import {
   Users, Calendar, Clock, DollarSign, Plus, Printer, 
   Edit, Trash2, Sliders, FileSpreadsheet, ArrowDownRight, 
   ArrowUpRight, AlertCircle, CheckCircle2, ShieldCheck, 
-  Search, RefreshCw 
+  Search, RefreshCw, QrCode 
 } from 'lucide-react';
 import MonthlySheet from './MonthlySheet';
 import { fetchWorkers, deleteWorker } from '../utils/api';
@@ -352,10 +352,11 @@ export default function AdminView({
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                   <button
                     onClick={() => onOpenIDCard(worker)}
-                    className="flex-1 flex items-center justify-center space-x-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition cursor-pointer"
+                    className="flex-1 flex items-center justify-center space-x-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition cursor-pointer shadow-xs"
+                    title="View QR Identity Pass & Download"
                   >
-                    <Printer className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Print QR Badge</span>
+                    <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>View QR Pass</span>
                   </button>
 
                   <button

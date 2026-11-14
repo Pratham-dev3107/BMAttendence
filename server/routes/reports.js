@@ -17,12 +17,13 @@ function getNowIST() {
 }
 
 // GET /api/reports/monthly - Full matrix sheet with Sunday-cut policy & automated payroll (IST)
-router.get('/monthly', (req, res) => {
+router.get('/monthly', async (req, res) => {
   const nowIST = getNowIST();
   const monthStr = req.query.month || nowIST.format('YYYY-MM'); // e.g. '2026-11'
   const settings = db.getSettings();
-  const workers = db.getWorkers().filter(w => w.status === 'active');
-  const attendanceRecords = db.getAttendanceByMonth(monthStr);
+  const allWorkers = await db.getWorkers();
+  const workers = allWorkers.filter(w => w.status === 'active');
+  const attendanceRecords = await db.getAttendanceByMonth(monthStr);
 
   const startOfMonth = dayjs.tz(`${monthStr}-01`, 'Asia/Kolkata');
   const daysInMonth = startOfMonth.daysInMonth();

@@ -81,7 +81,7 @@ export default function QRScannerModal({ isOpen, onClose, onPunchSuccess, worker
   // Parse worker ID from scanned text
   const parseWorkerCode = useCallback((rawText) => {
     if (!rawText) return null;
-    let code = String(rawText).trim();
+    let code = String(rawText).trim().replace(/^["']|["']$/g, '');
 
     // Check JSON payload
     if (code.startsWith('{') && code.endsWith('}')) {
@@ -102,19 +102,25 @@ export default function QRScannerModal({ isOpen, onClose, onPunchSuccess, worker
       if (match) code = decodeURIComponent(match[1]);
     }
 
-    // Exact match with workers array
-    const exactMatch = workers.find(w => 
-      w.id?.toUpperCase() === code.toUpperCase() ||
-      w.id?.toUpperCase() === `KRA-${code}`.toUpperCase()
-    );
-    if (exactMatch) return exactMatch.id;
+    const cleanCode = code.toUpperCase();
+    const codeDigits = cleanCode.replace(/\D/g, '');
+
+    // Exact or digits match with workers array
+    const match = (workers || []).find(w => {
+      const wid = String(w.id || '').toUpperCase();
+      const wDigits = wid.replace(/\D/g, '');
+      return wid === cleanCode || 
+             wid === `KRA-${cleanCode}` || 
+             (codeDigits && wDigits === codeDigits);
+    });
+    if (match) return match.id;
 
     // Numeric shorthand (e.g. 101 -> KRA-101)
-    if (!isNaN(code) && !code.toUpperCase().startsWith('KRA-')) {
+    if (!isNaN(code) && !cleanCode.startsWith('KRA-')) {
       return `KRA-${code}`;
     }
 
-    return code.toUpperCase();
+    return cleanCode;
   }, [workers]);
 
   // Handle a successfully decoded QR code
