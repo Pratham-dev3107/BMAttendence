@@ -35,78 +35,7 @@
     "key": "main_settings",
     "__v": 0
   },
-  "workers": [
-    {
-      "_id": "6af804add87fab70e7dbac88",
-      "id": "KRA-101",
-      "__v": 0,
-      "createdAt": "2026-01-01",
-      "department": "Fabrication",
-      "designation": "Senior Welder",
-      "name": "Ramesh Kumar",
-      "phone": "9876543210",
-      "photo": "",
-      "rate": 750,
-      "status": "active",
-      "wageType": "daily"
-    },
-    {
-      "_id": "6af804add87fab70e7dbac89",
-      "id": "KRA-102",
-      "__v": 0,
-      "createdAt": "2026-01-05",
-      "department": "Machining",
-      "designation": "Lathe Operator",
-      "name": "Suresh Yadav",
-      "phone": "9812345678",
-      "photo": "",
-      "rate": 800,
-      "status": "active",
-      "wageType": "daily"
-    },
-    {
-      "_id": "6af804add87fab70e7dbac8a",
-      "id": "KRA-103",
-      "__v": 0,
-      "createdAt": "2026-01-10",
-      "department": "Assembly",
-      "designation": "Fitter",
-      "name": "Mukesh Sharma",
-      "phone": "9723456789",
-      "photo": "",
-      "rate": 22000,
-      "status": "active",
-      "wageType": "monthly"
-    },
-    {
-      "_id": "6af804add87fab70e7dbac8b",
-      "id": "KRA-104",
-      "__v": 0,
-      "createdAt": "2026-02-01",
-      "department": "Packaging",
-      "designation": "Helper",
-      "name": "Rajesh Verma",
-      "phone": "9934567890",
-      "photo": "",
-      "rate": 550,
-      "status": "active",
-      "wageType": "daily"
-    },
-    {
-      "_id": "6af804add87fab70e7dbac8c",
-      "id": "KRA-105",
-      "__v": 0,
-      "createdAt": "2026-02-15",
-      "department": "Maintenance",
-      "designation": "Electrician",
-      "name": "Sunil Singh",
-      "phone": "9645678901",
-      "photo": "",
-      "rate": 25000,
-      "status": "active",
-      "wageType": "monthly"
-    }
-  ],
+  "workers": [],
   "attendance": [
     {
       "_id": "6af804add87fab70e7dbac8d",

@@ -52,68 +52,7 @@ const defaultData = {
     monthlyOffCutThreshold: 4,
     monthlyMaxSundayCut: 2
   },
-  workers: [
-    {
-      id: 'KRA-101',
-      name: 'Ramesh Kumar',
-      phone: '9876543210',
-      department: 'Fabrication',
-      designation: 'Senior Welder',
-      wageType: 'daily',
-      rate: 750,
-      photo: '',
-      status: 'active',
-      createdAt: '2026-01-01'
-    },
-    {
-      id: 'KRA-102',
-      name: 'Suresh Yadav',
-      phone: '9812345678',
-      department: 'Machining',
-      designation: 'Lathe Operator',
-      wageType: 'daily',
-      rate: 800,
-      photo: '',
-      status: 'active',
-      createdAt: '2026-01-05'
-    },
-    {
-      id: 'KRA-103',
-      name: 'Mukesh Sharma',
-      phone: '9723456789',
-      department: 'Assembly',
-      designation: 'Fitter',
-      wageType: 'monthly',
-      rate: 22000,
-      photo: '',
-      status: 'active',
-      createdAt: '2026-01-10'
-    },
-    {
-      id: 'KRA-104',
-      name: 'Rajesh Verma',
-      phone: '9934567890',
-      department: 'Packaging',
-      designation: 'Helper',
-      wageType: 'daily',
-      rate: 550,
-      photo: '',
-      status: 'active',
-      createdAt: '2026-02-01'
-    },
-    {
-      id: 'KRA-105',
-      name: 'Sunil Singh',
-      phone: '9645678901',
-      department: 'Maintenance',
-      designation: 'Electrician',
-      wageType: 'monthly',
-      rate: 25000,
-      photo: '',
-      status: 'active',
-      createdAt: '2026-02-15'
-    }
-  ],
+  workers: [],
   attendance: [],
   advances: []
 };
@@ -194,23 +133,11 @@ class Database {
 
       // 3. Workers
       const cloudWorkers = await WorkerModel.find({});
-      if (cloudWorkers && cloudWorkers.length > 0) {
-        this.data.workers = cloudWorkers.map(w => w.toObject());
-      } else {
-        for (const w of this.data.workers) {
-          await WorkerModel.findOneAndUpdate({ id: w.id }, w, { upsert: true });
-        }
-      }
+      this.data.workers = (cloudWorkers || []).map(w => w.toObject());
 
       // 4. Attendance
       const cloudAttendance = await AttendanceModel.find({});
-      if (cloudAttendance && cloudAttendance.length > 0) {
-        this.data.attendance = cloudAttendance.map(a => a.toObject());
-      } else {
-        for (const a of this.data.attendance) {
-          await AttendanceModel.findOneAndUpdate({ id: a.id }, a, { upsert: true });
-        }
-      }
+      this.data.attendance = (cloudAttendance || []).map(a => a.toObject());
 
       this.saveLocal();
     } catch (err) {
