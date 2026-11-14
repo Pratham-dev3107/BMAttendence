@@ -47,7 +47,6 @@ function calculateAttendanceMetrics(punches, settings, dateStr) {
   if (lastOutPunch && dateStr) {
     const shiftEndTimestamp = dayjs(`${dateStr} ${shiftEndTime}`).valueOf();
     if (lastOutPunch.timestamp > shiftEndTimestamp && totalHours >= minHalf) {
-      // Overtime is difference between lastOut and shiftEnd
       const otMs = lastOutPunch.timestamp - shiftEndTimestamp;
       overtimeHours = Math.round((otMs / (1000 * 60 * 60)) * 10) / 10;
     }
@@ -125,18 +124,18 @@ router.get('/today', (req, res) => {
   });
 });
 
-// POST /api/attendance/punch - Record In/Out punch with millisecond precision
+// POST /api/attendance/punch - Record In/Out punch with anti-stutter & mode intelligence
 router.post('/punch', (req, res) => {
   try {
-    const { workerId, type, method = 'QR', markedBy = 'Gatekeeper', date, time } = req.body;
+    const { workerId, type, method = 'QR', markedBy = 'Gatekeeper', date, time, force = false } = req.body;
 
     if (!workerId) {
       return res.status(400).json({ error: 'Worker ID is required' });
     }
 
-    const worker = db.getWorkers().find(w => w.id === workerId);
+    const worker = db.getWorkers().find(w => w.id.toUpperCase() === workerId.toUpperCase());
     if (!worker) {
-      return res.status(404).json({ error: `Worker with ID "${workerId}" not found.` });
+      return res.status(404).json({ error: `Worker with ID "${workerId}" not found in system.` });
     }
 
     const punchDate = date || dayjs().format('YYYY-MM-DD');
@@ -144,11 +143,11 @@ router.post('/punch', (req, res) => {
     const punchTime = time || now.format('HH:mm:ss');
     const timestamp = date && time ? dayjs(`${date} ${time}`).valueOf() : now.valueOf();
 
-    let record = db.findAttendanceRecord(workerId, punchDate);
+    let record = db.findAttendanceRecord(worker.id, punchDate);
     if (!record) {
       record = {
         id: uuidv4(),
-        workerId,
+        workerId: worker.id,
         date: punchDate,
         punches: [],
         manualStatus: null,
@@ -156,13 +155,75 @@ router.post('/punch', (req, res) => {
       };
     }
 
-    // Determine punch type if AUTO: IN if first punch or last was OUT; OUT if last was IN
-    let punchType = type;
-    if (!punchType || punchType === 'AUTO') {
-      if (record.punches.length === 0) {
-        punchType = 'IN';
+    const lastPunch = record.punches.length > 0 ? record.punches[record.punches.length - 1] : null;
+
+    // -------------------------------------------------------------
+    // ANTI-SPAM & INTELLIGENT PUNCH RESOLUTION
+    // -------------------------------------------------------------
+    let punchType = type; // Can be 'IN', 'OUT', or 'AUTO'
+
+    // 1. If explicit 'IN' requested:
+    if (punchType === 'IN') {
+      if (lastPunch && lastPunch.type === 'IN') {
+        const secondsSince = Math.floor((timestamp - lastPunch.timestamp) / 1000);
+        // If punched IN within last 10 minutes, do not duplicate
+        if (secondsSince < 600 && !force) {
+          return res.json({
+            success: true,
+            alreadyPunched: true,
+            message: `${worker.name} is already punched IN today at ${lastPunch.time}`,
+            punchType: 'IN',
+            punchTime: lastPunch.time,
+            worker,
+            record
+          });
+        }
+      }
+    } 
+    // 2. If explicit 'OUT' requested:
+    else if (punchType === 'OUT') {
+      if (record.punches.length === 0 && !force) {
+        return res.status(400).json({ 
+          error: `${worker.name} has no IN punch today. Punch IN first before punching OUT.` 
+        });
+      }
+      if (lastPunch && lastPunch.type === 'OUT') {
+        const secondsSince = Math.floor((timestamp - lastPunch.timestamp) / 1000);
+        if (secondsSince < 600 && !force) {
+          return res.json({
+            success: true,
+            alreadyPunched: true,
+            message: `${worker.name} is already punched OUT today at ${lastPunch.time}`,
+            punchType: 'OUT',
+            punchTime: lastPunch.time,
+            worker,
+            record
+          });
+        }
+      }
+    } 
+    // 3. If 'AUTO' mode:
+    else {
+      if (!lastPunch) {
+        punchType = 'IN'; // First punch of the day is ALWAYS IN
       } else {
-        const lastPunch = record.punches[record.punches.length - 1];
+        const secondsSinceLast = Math.floor((timestamp - lastPunch.timestamp) / 1000);
+
+        // Strict accidental double-scan protection (within 3 minutes)
+        if (secondsSinceLast < 180 && !force) {
+          return res.json({
+            success: true,
+            alreadyPunched: true,
+            message: `${worker.name} already punched ${lastPunch.type} just now at ${lastPunch.time}`,
+            punchType: lastPunch.type,
+            punchTime: lastPunch.time,
+            worker,
+            record
+          });
+        }
+
+        // If last punch was IN and more than 15 minutes passed -> Punch OUT
+        // If last punch was OUT and worker comes back -> Punch IN
         punchType = lastPunch.type === 'IN' ? 'OUT' : 'IN';
       }
     }
