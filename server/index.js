@@ -8,7 +8,8 @@ import workersRouter from './routes/workers.js';
 import attendanceRouter from './routes/attendance.js';
 import reportsRouter from './routes/reports.js';
 import settingsRouter from './routes/settings.js';
-import { connectMongo, isMongoConnected } from './mongo.js';
+import mongoose from 'mongoose';
+import { connectMongo, isMongoConnected, WorkerModel } from './mongo.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +49,36 @@ app.use('/uploads', express.static(uploadsDir));
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+// Diagnostic endpoint to check MongoDB on Vercel
+app.get('/api/debug-mongo', async (req, res) => {
+  const result = {
+    connected: isMongoConnected(),
+    readyState: mongoose.connection?.readyState,
+    envUri: !!process.env.MONGODB_URI,
+    error: null,
+    timeMs: 0
+  };
+  const start = Date.now();
+  try {
+    const conn = await connectMongo();
+    result.connected = isMongoConnected();
+    result.readyState = mongoose.connection?.readyState;
+    result.timeMs = Date.now() - start;
+    if (result.connected) {
+      const count = await WorkerModel.countDocuments();
+      result.workerCount = count;
+    }
+  } catch (err) {
+    result.error = {
+      message: err.message,
+      name: err.name,
+      stack: err.stack
+    };
+    result.timeMs = Date.now() - start;
+  }
+  res.json(result);
 });
 
 // Production: serve built frontend
