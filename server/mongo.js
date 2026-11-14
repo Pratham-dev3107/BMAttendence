@@ -95,8 +95,8 @@ export async function connectMongo(uri = process.env.MONGODB_URI || DEFAULT_MONG
   if (!cached.promise) {
     const targetUri = uri || DEFAULT_MONGO_URI;
     cached.promise = mongoose.connect(targetUri, {
-      serverSelectionTimeoutMS: 4000,
-      connectTimeoutMS: 4000,
+      serverSelectionTimeoutMS: 2000,
+      connectTimeoutMS: 2000,
       maxPoolSize: 10,
     }).then(m => {
       lastMongoError = null;
