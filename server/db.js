@@ -260,56 +260,105 @@ class Database {
 
   async addWorker(worker) {
     await this.ensureMongoReady();
-    const idx = this.data.workers.findIndex(w => w.id === worker.id);
+    if (!worker || !worker.id) return null;
+
+    const cleanId = String(worker.id).trim().toUpperCase();
+    const cleanWorker = { ...worker, id: cleanId };
+
+    const idx = (this.data.workers || []).findIndex(w => String(w.id || '').toUpperCase() === cleanId);
     if (idx >= 0) {
-      this.data.workers[idx] = worker;
+      this.data.workers[idx] = cleanWorker;
     } else {
-      this.data.workers.push(worker);
+      this.data.workers.push(cleanWorker);
     }
     this.saveLocal();
 
-    // Fast direct write to MongoDB Atlas
+    // MUST AWAIT PERMANENT WRITE TO MONGODB ATLAS
     if (this.mongoConnected) {
-      WorkerModel.findOneAndUpdate(
-        { id: worker.id },
-        { $set: worker },
-        { upsert: true, new: true }
-      ).catch(err => console.error('Mongo addWorker error:', err));
+      try {
+        await WorkerModel.findOneAndUpdate(
+          { id: cleanId },
+          { $set: cleanWorker },
+          { upsert: true, new: true }
+        );
+        console.log(`✅ Permanently saved worker ${cleanId} (${cleanWorker.name}) to MongoDB Atlas`);
+      } catch (err) {
+        console.error('Mongo addWorker error:', err);
+        throw new Error('Failed to save worker to cloud database: ' + err.message);
+      }
     }
-    return worker;
+    return cleanWorker;
   }
 
   async updateWorker(id, updates) {
     await this.ensureMongoReady();
-    const idx = this.data.workers.findIndex(w => w.id === id);
+    const cleanId = String(id).trim().toUpperCase();
+    const idx = (this.data.workers || []).findIndex(w => String(w.id || '').toUpperCase() === cleanId);
     if (idx !== -1) {
-      this.data.workers[idx] = { ...this.data.workers[idx], ...updates };
+      this.data.workers[idx] = { ...this.data.workers[idx], ...updates, id: cleanId };
       this.saveLocal();
     }
 
     if (this.mongoConnected) {
-      WorkerModel.findOneAndUpdate(
-        { id },
-        { $set: updates },
-        { new: true }
-      ).catch(err => console.error('Mongo updateWorker error:', err));
+      try {
+        const updated = await WorkerModel.findOneAndUpdate(
+          { id: cleanId },
+          { $set: updates },
+          { new: true }
+        );
+        if (updated) return updated.toObject();
+      } catch (err) {
+        console.error('Mongo updateWorker error:', err);
+      }
     }
     return idx !== -1 ? this.data.workers[idx] : null;
   }
 
   async deleteWorker(id) {
     await this.ensureMongoReady();
-    const idx = this.data.workers.findIndex(w => w.id === id);
+    if (!id) return null;
+
+    const cleanId = String(id).trim().toUpperCase();
+
+    // 1. Remove from in-memory workers array
+    const idx = (this.data.workers || []).findIndex(w => 
+      String(w.id || '').toUpperCase() === cleanId ||
+      String(w.id || '').replace(/\D/g, '') === cleanId.replace(/\D/g, '')
+    );
     let removed = null;
     if (idx !== -1) {
       removed = this.data.workers.splice(idx, 1)[0];
-      this.saveLocal();
     }
 
+    // 2. Remove any attendance records for this worker from memory
+    this.data.attendance = (this.data.attendance || []).filter(a => 
+      String(a.workerId || '').toUpperCase() !== cleanId
+    );
+    this.saveLocal();
+
+    // 3. MUST AWAIT PERMANENT DELETE FROM MONGODB ATLAS
     if (this.mongoConnected) {
-      WorkerModel.deleteOne({ id }).catch(err => console.error('Mongo deleteWorker error:', err));
+      try {
+        await WorkerModel.deleteMany({
+          $or: [
+            { id: cleanId },
+            { id: id },
+            { id: new RegExp(`^${cleanId}$`, 'i') }
+          ]
+        });
+        await AttendanceModel.deleteMany({
+          $or: [
+            { workerId: cleanId },
+            { workerId: id },
+            { workerId: new RegExp(`^${cleanId}$`, 'i') }
+          ]
+        });
+        console.log(`✅ Permanently deleted worker ${cleanId} from MongoDB Atlas`);
+      } catch (err) {
+        console.error('Mongo deleteWorker error:', err);
+      }
     }
-    return removed;
+    return removed || { id: cleanId };
   }
 
   async getAttendanceByDate(dateStr) {

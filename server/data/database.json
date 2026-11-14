@@ -75,18 +75,6 @@
       "rate": 600,
       "status": "active",
       "wageType": "daily"
-    },
-    {
-      "id": "KRA-105",
-      "name": "wswww",
-      "phone": "9601147389",
-      "department": "Fabrication",
-      "designation": "Helper",
-      "wageType": "daily",
-      "rate": 600,
-      "photo": "",
-      "status": "active",
-      "createdAt": "2026-11-14"
     }
   ],
   "attendance": [

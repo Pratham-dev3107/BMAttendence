@@ -69,13 +69,14 @@ router.put('/:id', async (req, res) => {
 
 // DELETE /api/workers/:id - Remove or soft-delete worker
 router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
-  const deleted = await db.deleteWorker(id);
-  if (!deleted) {
-    return res.status(404).json({ error: 'Worker not found' });
+  try {
+    const { id } = req.params;
+    const deleted = await db.deleteWorker(id);
+    res.json({ message: 'Worker removed permanently from database', worker: deleted });
+  } catch (err) {
+    console.error('Delete worker error:', err);
+    res.status(500).json({ error: err.message || 'Failed to delete worker' });
   }
-
-  res.json({ message: 'Worker removed successfully', worker: deleted });
 });
 
 export default router;
