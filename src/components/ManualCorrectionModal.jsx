@@ -78,23 +78,29 @@ export default function ManualCorrectionModal({ item, isOpen, onClose, onSave })
           
           <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-xs">
             <p className="text-slate-400">Worker: <span className="font-bold text-white">{item.worker?.name || item.workerName}</span> ({item.workerId || item.worker?.id})</p>
-            <p className="text-slate-400 mt-0.5">Date: <span className="font-bold text-white">{item.date}</span></p>
+            <p className="text-slate-400 mt-0.5">Date: <span className="font-bold text-emerald-400">{item.date}</span></p>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
               Attendance Status
             </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none cursor-pointer"
-            >
-              <option value="PRESENT">PRESENT (P) - Full Day</option>
-              <option value="HALF_DAY">HALF_DAY (HD) - Half Day</option>
-              <option value="ABSENT">ABSENT (A) - Absent</option>
-              <option value="WO">WEEKLY OFF (WO) - Sunday/Holiday</option>
-            </select>
+            <div className="grid grid-cols-3 gap-2">
+              {['PRESENT', 'HALF_DAY', 'ABSENT'].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatus(s)}
+                  className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    status === s 
+                      ? s === 'PRESENT' ? 'bg-emerald-600 text-white' : s === 'HALF_DAY' ? 'bg-amber-600 text-white' : 'bg-rose-600 text-white'
+                      : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  {s === 'PRESENT' ? 'Present' : s === 'HALF_DAY' ? 'Half Day' : 'Absent'}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

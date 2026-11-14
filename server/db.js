@@ -2,8 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import { 
   connectMongo, 
+  isMongoConnected,
   WorkerModel, 
   AttendanceModel, 
   SettingModel, 
@@ -146,7 +148,7 @@ class Database {
   }
 
   async ensureMongoReady() {
-    if (this.mongoConnected && mongoose.connection.readyState === 1) return true;
+    if (this.mongoConnected && isMongoConnected()) return true;
     try {
       const conn = await connectMongo();
       if (conn) {

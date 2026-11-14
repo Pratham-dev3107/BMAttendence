@@ -70,6 +70,10 @@ export const UserModel = mongoose.models.User || mongoose.model('User', UserSche
 
 export const DEFAULT_MONGO_URI = 'mongodb://prathamvashisht3107_db_user:5neZqLna0uozzAjr@ac-cbp06zd-shard-00-00.it9khey.mongodb.net:27017,ac-cbp06zd-shard-00-01.it9khey.mongodb.net:27017,ac-cbp06zd-shard-00-02.it9khey.mongodb.net:27017/kranti_attendance?ssl=true&replicaSet=atlas-bvj6l9-shard-0&authSource=admin';
 
+export function isMongoConnected() {
+  return !!(mongoose.connection && mongoose.connection.readyState === 1);
+}
+
 export async function connectMongo(uri = process.env.MONGODB_URI || DEFAULT_MONGO_URI) {
   if (cachedConnection && mongoose.connection.readyState === 1) {
     return cachedConnection;
