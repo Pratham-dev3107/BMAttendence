@@ -1,17 +1,21 @@
 {
   "users": [
     {
-      "id": "usr_admin",
+      "_id": "6af804add87fab70e7dbac86",
       "username": "admin",
-      "password": "admin123",
+      "__v": 0,
+      "id": "usr_admin",
       "name": "System Admin",
+      "password": "admin123",
       "role": "admin"
     },
     {
-      "id": "usr_guard",
+      "_id": "6af804add87fab70e7dbac87",
       "username": "guard",
-      "password": "guard123",
+      "__v": 0,
+      "id": "usr_guard",
       "name": "Main Gate Security",
+      "password": "guard123",
       "role": "gatekeeper"
     }
   ],
@@ -26,9 +30,75 @@
     "weeklyOffDay": 0,
     "weeklyOffCutThreshold": 3,
     "monthlyOffCutThreshold": 4,
-    "monthlyMaxSundayCut": 2
+    "monthlyMaxSundayCut": 2,
+    "_id": "6af804ae3476b365c393783b",
+    "key": "main_settings",
+    "__v": 0
   },
   "workers": [],
-  "attendance": [],
+  "attendance": [
+    {
+      "_id": "6af804add87fab70e7dbac8d",
+      "id": "2ca46ed8-e1ed-4674-8dd7-93dd1393ce9d",
+      "__v": 0,
+      "currentStatus": "IN",
+      "date": "2026-11-14",
+      "firstIn": "11:42:26",
+      "lastOut": "11:46:52",
+      "manualStatus": null,
+      "notes": "",
+      "overtimeHours": 0,
+      "punches": [
+        {
+          "id": "5edb45aa-89df-4ebd-8fa8-d7b6ed2176f8",
+          "type": "IN",
+          "time": "11:42:26",
+          "timestamp": 1794636746072,
+          "method": "MANUAL",
+          "markedBy": "Gatekeeper",
+          "_id": "6af804ae3476b365c393783c"
+        },
+        {
+          "id": "f968f5d8-fca6-4d28-9bbf-2987f0e23c5a",
+          "type": "OUT",
+          "time": "11:42:34",
+          "timestamp": 1794636754128,
+          "method": "MANUAL",
+          "markedBy": "Gatekeeper",
+          "_id": "6af804ae3476b365c393783d"
+        },
+        {
+          "id": "16ed82f6-c1f6-408e-90bf-d3021b67ab83",
+          "type": "IN",
+          "time": "11:46:50",
+          "timestamp": 1794637010350,
+          "method": "MANUAL",
+          "markedBy": "Gatekeeper",
+          "_id": "6af804ae3476b365c393783e"
+        },
+        {
+          "id": "1a18c5f9-5832-4d6f-a503-c26ef621149a",
+          "type": "OUT",
+          "time": "11:46:52",
+          "timestamp": 1794637012622,
+          "method": "MANUAL",
+          "markedBy": "Gatekeeper",
+          "_id": "6af804ae3476b365c393783f"
+        },
+        {
+          "id": "6fa580fa-d43a-439a-8fa5-a56e8b8df3d6",
+          "type": "IN",
+          "time": "12:37:52",
+          "timestamp": 1794640072790,
+          "method": "QR",
+          "markedBy": "Gatekeeper",
+          "_id": "6af808c8eac3910f772fcf89"
+        }
+      ],
+      "status": "PRESENT",
+      "totalHours": 0,
+      "workerId": "KRA-101"
+    }
+  ],
   "advances": []
 }

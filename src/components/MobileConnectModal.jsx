@@ -8,26 +8,46 @@ export default function MobileConnectModal({ isOpen, onClose }) {
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
+  // Compute best mobile URL
+  const getMobileUrl = (info) => {
+    // If running in HTTPS or deployed on Vercel/cloud, use exact origin
+    if (typeof window !== 'undefined' && (window.location.protocol === 'https:' || !window.location.port || window.location.hostname.includes('vercel.app'))) {
+      return window.location.origin;
+    }
+    // If local network IP was retrieved
+    if (info?.mobileUrl) return info.mobileUrl;
+    if (info?.ip && info.ip !== '127.0.0.1' && info.ip !== 'localhost') {
+      return `http://${info.ip}:${info.port || 5000}`;
+    }
+    return `http://${window.location.hostname}:${window.location.port || 5000}`;
+  };
+
   useEffect(() => {
     if (!isOpen) return;
 
     fetchNetworkIp().then(data => {
       setNetworkInfo(data);
-      const url = data.mobileUrl || `http://${window.location.hostname}:5000`;
-      QRCode.toDataURL(url, { width: 220, margin: 1 }).then(urlStr => {
+      const url = getMobileUrl(data);
+      QRCode.toDataURL(url, { width: 240, margin: 1 }).then(urlStr => {
         setQrDataUrl(urlStr);
       }).catch(console.error);
     }).catch(err => {
-      const fallbackUrl = `http://${window.location.hostname}:5000`;
-      QRCode.toDataURL(fallbackUrl, { width: 220, margin: 1 }).then(urlStr => {
+      const fallbackUrl = getMobileUrl(null);
+      QRCode.toDataURL(fallbackUrl, { width: 240, margin: 1 }).then(urlStr => {
         setQrDataUrl(urlStr);
       });
     });
-  }, [isOpen]);
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const mobileUrl = networkInfo?.mobileUrl || `http://${window.location.hostname}:5000`;
+  const mobileUrl = getMobileUrl(networkInfo);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(mobileUrl);
@@ -36,28 +56,38 @@ export default function MobileConnectModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+    <div 
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 select-none animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/90">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
               <Smartphone className="w-4 h-4" />
             </div>
             <h3 className="text-base font-bold text-white">Connect Guard Phone</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer">
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            title="Close (Esc)"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 flex flex-col items-center text-center space-y-4">
+        <div className="p-6 flex flex-col items-center text-center space-y-4 overflow-y-auto">
           
-          <div className="bg-sky-500/10 border border-sky-500/20 text-sky-300 text-xs px-3.5 py-2.5 rounded-xl flex items-center space-x-2 text-left">
+          <div className="bg-sky-500/10 border border-sky-500/20 text-sky-300 text-xs px-3.5 py-2.5 rounded-xl flex items-center space-x-2 text-left w-full">
             <Wifi className="w-4 h-4 flex-shrink-0 text-sky-400" />
-            <span>Make sure the phone and this computer are connected to the <strong>same Wi-Fi or Hotspot</strong>.</span>
+            <span>Scan this QR with phone camera to open the Gate Terminal on mobile.</span>
           </div>
 
           {/* QR Code Container */}
@@ -74,6 +104,7 @@ export default function MobileConnectModal({ isOpen, onClose }) {
             <div className="flex items-center space-x-2 bg-slate-950 px-3.5 py-2 rounded-xl border border-slate-800">
               <span className="font-mono text-xs font-bold text-emerald-400 flex-1 truncate select-all">{mobileUrl}</span>
               <button 
+                type="button"
                 onClick={copyToClipboard}
                 className="text-slate-400 hover:text-white p-1 rounded transition cursor-pointer"
                 title="Copy URL"
@@ -87,13 +118,14 @@ export default function MobileConnectModal({ isOpen, onClose }) {
             <p className="font-bold text-slate-200">💡 Installation Pro Tip:</p>
             <p>1. Open this link in Chrome or Safari on the phone.</p>
             <p>2. Tap the browser menu and select <strong className="text-white">"Add to Home Screen"</strong>.</p>
-            <p>3. It installs as a full-screen app for one-touch access at the gate!</p>
+            <p>3. It installs as a full-screen app for instant one-touch access at the gate!</p>
           </div>
 
         </div>
 
         <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-end">
           <button
+            type="button"
             onClick={onClose}
             className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm rounded-xl transition cursor-pointer"
           >

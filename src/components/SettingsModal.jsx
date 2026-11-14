@@ -5,8 +5,8 @@ import { updateSettings } from '../utils/api';
 export default function SettingsModal({ isOpen, onClose, currentSettings, onSettingsUpdated }) {
   const [formData, setFormData] = useState({
     companyName: 'Kranti Industries',
-    shiftStart: '09:00',
-    shiftEnd: '18:00',
+    shiftStart: '08:30',
+    shiftEnd: '17:00',
     graceMinutes: 15,
     fullDayMinHours: 8,
     halfDayMinHours: 4,
@@ -18,15 +18,21 @@ export default function SettingsModal({ isOpen, onClose, currentSettings, onSett
     if (currentSettings) {
       setFormData({
         companyName: currentSettings.companyName || 'Kranti Industries',
-        shiftStart: currentSettings.shiftStart || '09:00',
-        shiftEnd: currentSettings.shiftEnd || '18:00',
+        shiftStart: currentSettings.shiftStart || '08:30',
+        shiftEnd: currentSettings.shiftEnd || '17:00',
         graceMinutes: currentSettings.graceMinutes ?? 15,
         fullDayMinHours: currentSettings.fullDayMinHours ?? 8,
         halfDayMinHours: currentSettings.halfDayMinHours ?? 4,
         overtimeThresholdHours: currentSettings.overtimeThresholdHours ?? 8.5
       });
     }
-  }, [currentSettings, isOpen]);
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentSettings, isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -51,8 +57,13 @@ export default function SettingsModal({ isOpen, onClose, currentSettings, onSett
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+    <div 
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 select-none animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">

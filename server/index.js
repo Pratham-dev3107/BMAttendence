@@ -25,6 +25,10 @@ app.use('/api/workers', workersRouter);
 app.use('/api/attendance', attendanceRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/settings', settingsRouter);
+app.get('/api/network-ip', (req, res, next) => {
+  req.url = '/network-ip';
+  settingsRouter(req, res, next);
+});
 
 // Static uploads folder
 const uploadsDir = path.join(__dirname, 'uploads');

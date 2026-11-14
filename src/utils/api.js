@@ -99,6 +99,9 @@ export async function updateSettings(settings) {
 }
 
 export async function fetchNetworkIp() {
-  const res = await fetch(`${API_BASE}/settings/network-ip`);
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/settings/network-ip`);
+    if (res.ok) return await res.json();
+  } catch (e) {}
+  return { ip: window.location.hostname, port: window.location.port || 5000 };
 }
