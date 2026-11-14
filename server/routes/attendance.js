@@ -1,9 +1,19 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
 import { db } from '../db.js';
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.tz.setDefault('Asia/Kolkata'); // Indian Standard Time (IST)
+
 const router = express.Router();
+
+function getNowIST() {
+  return dayjs().tz('Asia/Kolkata');
+}
 
 // Helper to calculate hours & exact Overtime past 5:00 PM (17:00)
 function calculateAttendanceMetrics(punches, settings, dateStr) {
@@ -42,10 +52,10 @@ function calculateAttendanceMetrics(punches, settings, dateStr) {
   const minHalf = settings.halfDayMinHours || 4.5;
   const shiftEndTime = settings.shiftEnd || '17:00'; // 5:00 PM
 
-  // Calculate Overtime: Any work done past 17:00 (5:00 PM)
+  // Calculate Overtime: Any work done past 17:00 (5:00 PM IST)
   let overtimeHours = 0;
   if (lastOutPunch && dateStr) {
-    const shiftEndTimestamp = dayjs(`${dateStr} ${shiftEndTime}`).valueOf();
+    const shiftEndTimestamp = dayjs.tz(`${dateStr} ${shiftEndTime}`, 'Asia/Kolkata').valueOf();
     if (lastOutPunch.timestamp > shiftEndTimestamp && totalHours >= minHalf) {
       const otMs = lastOutPunch.timestamp - shiftEndTimestamp;
       overtimeHours = Math.round((otMs / (1000 * 60 * 60)) * 10) / 10;
@@ -76,9 +86,9 @@ function calculateAttendanceMetrics(punches, settings, dateStr) {
   };
 }
 
-// GET /api/attendance/today - Get attendance status for all workers today
+// GET /api/attendance/today - Get attendance status for all workers today (IST)
 router.get('/today', (req, res) => {
-  const todayStr = req.query.date || dayjs().format('YYYY-MM-DD');
+  const todayStr = req.query.date || getNowIST().format('YYYY-MM-DD');
   const settings = db.getSettings();
   const workers = db.getWorkers().filter(w => w.status === 'active');
   const todayRecords = db.getAttendanceByDate(todayStr);
@@ -100,7 +110,9 @@ router.get('/today', (req, res) => {
       status: record?.manualStatus || (punches.length === 0 ? 'ABSENT' : metrics.status),
       currentStatus: metrics.currentStatus, // 'IN' or 'OUT'
       isLate: metrics.firstIn && settings.shiftStart ? 
-        dayjs(`${todayStr} ${metrics.firstIn}`).isAfter(dayjs(`${todayStr} ${settings.shiftStart}`).add(settings.graceMinutes || 15, 'minute')) : false
+        dayjs.tz(`${todayStr} ${metrics.firstIn}`, 'Asia/Kolkata').isAfter(
+          dayjs.tz(`${todayStr} ${settings.shiftStart}`, 'Asia/Kolkata').add(settings.graceMinutes || 15, 'minute')
+        ) : false
     };
   });
 
@@ -124,7 +136,7 @@ router.get('/today', (req, res) => {
   });
 });
 
-// POST /api/attendance/punch - Record In/Out punch with anti-stutter & mode intelligence
+// POST /api/attendance/punch - Record In/Out punch with exact local IST time
 router.post('/punch', (req, res) => {
   try {
     const { workerId, type, method = 'QR', markedBy = 'Gatekeeper', date, time, force = false } = req.body;
@@ -138,10 +150,13 @@ router.post('/punch', (req, res) => {
       return res.status(404).json({ error: `Worker with ID "${workerId}" not found in system.` });
     }
 
-    const punchDate = date || dayjs().format('YYYY-MM-DD');
-    const now = dayjs();
-    const punchTime = time || now.format('HH:mm:ss');
-    const timestamp = date && time ? dayjs(`${date} ${time}`).valueOf() : now.valueOf();
+    const nowIST = getNowIST();
+    // Use client device time if provided, otherwise server IST time
+    const punchDate = date || nowIST.format('YYYY-MM-DD');
+    const punchTime = time || nowIST.format('HH:mm:ss');
+    const timestamp = date && time 
+      ? dayjs.tz(`${date} ${time}`, 'Asia/Kolkata').valueOf() 
+      : nowIST.valueOf();
 
     let record = db.findAttendanceRecord(worker.id, punchDate);
     if (!record) {
@@ -157,16 +172,12 @@ router.post('/punch', (req, res) => {
 
     const lastPunch = record.punches.length > 0 ? record.punches[record.punches.length - 1] : null;
 
-    // -------------------------------------------------------------
-    // ANTI-SPAM & INTELLIGENT PUNCH RESOLUTION
-    // -------------------------------------------------------------
     let punchType = type; // Can be 'IN', 'OUT', or 'AUTO'
 
-    // 1. If explicit 'IN' requested:
+    // 1. Explicit 'IN' mode (Morning arrival)
     if (punchType === 'IN') {
       if (lastPunch && lastPunch.type === 'IN') {
         const secondsSince = Math.floor((timestamp - lastPunch.timestamp) / 1000);
-        // If punched IN within last 10 minutes, do not duplicate
         if (secondsSince < 600 && !force) {
           return res.json({
             success: true,
@@ -180,7 +191,7 @@ router.post('/punch', (req, res) => {
         }
       }
     } 
-    // 2. If explicit 'OUT' requested:
+    // 2. Explicit 'OUT' mode (Evening departure)
     else if (punchType === 'OUT') {
       if (record.punches.length === 0 && !force) {
         return res.status(400).json({ 
@@ -202,14 +213,13 @@ router.post('/punch', (req, res) => {
         }
       }
     } 
-    // 3. If 'AUTO' mode:
+    // 3. 'AUTO' mode with strict 3-minute cooldown
     else {
       if (!lastPunch) {
-        punchType = 'IN'; // First punch of the day is ALWAYS IN
+        punchType = 'IN';
       } else {
         const secondsSinceLast = Math.floor((timestamp - lastPunch.timestamp) / 1000);
 
-        // Strict accidental double-scan protection (within 3 minutes)
         if (secondsSinceLast < 180 && !force) {
           return res.json({
             success: true,
@@ -222,8 +232,6 @@ router.post('/punch', (req, res) => {
           });
         }
 
-        // If last punch was IN and more than 15 minutes passed -> Punch OUT
-        // If last punch was OUT and worker comes back -> Punch IN
         punchType = lastPunch.type === 'IN' ? 'OUT' : 'IN';
       }
     }
@@ -284,8 +292,8 @@ router.post('/manual-override', (req, res) => {
   }
 
   if (firstIn && lastOut) {
-    const tIn = dayjs(`${date} ${firstIn}`).valueOf();
-    const tOut = dayjs(`${date} ${lastOut}`).valueOf();
+    const tIn = dayjs.tz(`${date} ${firstIn}`, 'Asia/Kolkata').valueOf();
+    const tOut = dayjs.tz(`${date} ${lastOut}`, 'Asia/Kolkata').valueOf();
     record.punches = [
       { id: uuidv4(), type: 'IN', time: firstIn, timestamp: tIn, method: 'ADMIN_OVERRIDE', markedBy: 'Admin' },
       { id: uuidv4(), type: 'OUT', time: lastOut, timestamp: tOut, method: 'ADMIN_OVERRIDE', markedBy: 'Admin' }

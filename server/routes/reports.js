@@ -1,22 +1,32 @@
 import express from 'express';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek.js';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
 import { db } from '../db.js';
 
 dayjs.extend(isoWeek);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.tz.setDefault('Asia/Kolkata');
 
 const router = express.Router();
 
-// GET /api/reports/monthly - Full matrix sheet with Sunday-cut policy & automated payroll
+function getNowIST() {
+  return dayjs().tz('Asia/Kolkata');
+}
+
+// GET /api/reports/monthly - Full matrix sheet with Sunday-cut policy & automated payroll (IST)
 router.get('/monthly', (req, res) => {
-  const monthStr = req.query.month || dayjs().format('YYYY-MM'); // e.g. '2026-11'
+  const nowIST = getNowIST();
+  const monthStr = req.query.month || nowIST.format('YYYY-MM'); // e.g. '2026-11'
   const settings = db.getSettings();
   const workers = db.getWorkers().filter(w => w.status === 'active');
   const attendanceRecords = db.getAttendanceByMonth(monthStr);
 
-  const startOfMonth = dayjs(`${monthStr}-01`);
+  const startOfMonth = dayjs.tz(`${monthStr}-01`, 'Asia/Kolkata');
   const daysInMonth = startOfMonth.daysInMonth();
-  const today = dayjs().format('YYYY-MM-DD');
+  const today = nowIST.format('YYYY-MM-DD');
 
   // Generate list of days in the month with week numbers
   const days = [];
@@ -25,8 +35,6 @@ router.get('/monthly', (req, res) => {
     const dateFormatted = currentDay.format('YYYY-MM-DD');
     const isSunday = currentDay.day() === (settings.weeklyOffDay ?? 0);
     const isFuture = dateFormatted > today;
-
-    // Week bucket: ISO week number or standard 7-day chunk
     const weekNumber = currentDay.isoWeek();
 
     days.push({
@@ -50,11 +58,10 @@ router.get('/monthly', (req, res) => {
     let totalHoursWorked = 0;
     let totalOvertimeHours = 0;
 
-    // Map each day's status
     const dailyAttendance = days.map(day => {
       const record = attendanceRecords.find(r => r.workerId === worker.id && r.date === day.date);
 
-      let status = '-'; // Future default
+      let status = '-';
       let hours = 0;
       let ot = 0;
       let inTime = null;
@@ -81,7 +88,7 @@ router.get('/monthly', (req, res) => {
         if (day.isWeeklyOff) {
           status = 'WO';
         } else {
-          status = 'A'; // Past weekday without record
+          status = 'A';
         }
       } else if (day.isWeeklyOff) {
         status = 'WO';
@@ -118,8 +125,6 @@ router.get('/monthly', (req, res) => {
 
     // -------------------------------------------------------------
     // POLICY: SUNDAY DEDUCTION RULES
-    // 1. If 3 offs in a single week -> Cut that week's Sunday
-    // 2. If 4 or more offs in the month -> Cut at least 2 Sundays
     // -------------------------------------------------------------
     const weekGroups = {};
     dailyAttendance.forEach(d => {
@@ -139,7 +144,6 @@ router.get('/monthly', (req, res) => {
     let weeklyCutCount = 0;
     const cutReasons = [];
 
-    // Check weekly condition (>= 3 offs in a single week)
     Object.keys(weekGroups).forEach(wk => {
       const g = weekGroups[wk];
       if (g.offs >= (settings.weeklyOffCutThreshold ?? 3) && g.hasSunday) {
@@ -151,7 +155,6 @@ router.get('/monthly', (req, res) => {
     let totalSundaysCut = weeklyCutCount;
     const totalEffectiveOffs = absentDays + (halfDays * 0.5);
 
-    // Check monthly condition (>= 4 offs in the month -> at least 2 Sundays cut)
     const monthlyCutThreshold = settings.monthlyOffCutThreshold ?? 4;
     const monthlyMaxCut = settings.monthlyMaxSundayCut ?? 2;
 
@@ -162,13 +165,10 @@ router.get('/monthly', (req, res) => {
       }
     }
 
-    // Cannot cut more Sundays than exist in the month
     totalSundaysCut = Math.min(totalSundaysCut, totalSundaysInMonth);
     const paidSundays = Math.max(0, totalSundaysInMonth - totalSundaysCut);
 
-    // -------------------------------------------------------------
-    // AUTOMATED SALARY CALCULATION
-    // -------------------------------------------------------------
+    // Automated payroll calculation
     const effectivePresentDays = presentDays + (halfDays * 0.5);
     let estimatedPay = 0;
     const hourlyShiftHours = settings.fullDayMinHours || 8.5;
@@ -176,13 +176,10 @@ router.get('/monthly', (req, res) => {
     if (worker.wageType === 'daily') {
       const dailyRate = worker.rate || 0;
       const hourlyRate = dailyRate / hourlyShiftHours;
-      // Daily wage: Effective worked days * daily rate + OT
       const basePay = effectivePresentDays * dailyRate;
-      const otPay = totalOvertimeHours * hourlyRate * 1.0; // Standard 1x or 1.5x OT
+      const otPay = totalOvertimeHours * hourlyRate * 1.0;
       estimatedPay = Math.round(basePay + otPay);
     } else {
-      // Monthly fixed salary:
-      // (Salary / daysInMonth) * (Worked Days + Paid Sundays) + OT
       const monthlyRate = worker.rate || 0;
       const perDayRate = monthlyRate / daysInMonth;
       const payableDays = effectivePresentDays + paidSundays;

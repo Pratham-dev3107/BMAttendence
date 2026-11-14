@@ -108,10 +108,24 @@ export default function App() {
 
   // Handle In/Out Punch
   const handlePunch = async (workerId, type = 'AUTO', method = 'QR') => {
+    // Capture exact device/phone local time down to second
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const localTime = `${hours}:${minutes}:${seconds}`;
+
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const localDate = `${year}-${month}-${day}`;
+
     const result = await punchAttendance({ 
       workerId, 
       type, 
       method,
+      date: localDate,
+      time: localTime,
       markedBy: currentUser?.name || currentUser?.username || 'Gatekeeper'
     });
     

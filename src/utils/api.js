@@ -18,11 +18,11 @@ export async function fetchTodayAttendance(dateStr) {
   return res.json();
 }
 
-export async function punchAttendance({ workerId, type, method = 'QR' }) {
+export async function punchAttendance({ workerId, type, method = 'QR', date, time, markedBy }) {
   const res = await fetch(`${API_BASE}/attendance/punch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ workerId, type, method })
+    body: JSON.stringify({ workerId, type, method, date, time, markedBy })
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to record punch');
