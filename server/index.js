@@ -9,7 +9,7 @@ import attendanceRouter from './routes/attendance.js';
 import reportsRouter from './routes/reports.js';
 import settingsRouter from './routes/settings.js';
 import mongoose from 'mongoose';
-import { connectMongo, isMongoConnected, WorkerModel } from './mongo.js';
+import { connectMongo, isMongoConnected, getLastMongoError, WorkerModel } from './mongo.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,6 +66,7 @@ app.get('/api/debug-mongo', async (req, res) => {
     result.connected = isMongoConnected();
     result.readyState = mongoose.connection?.readyState;
     result.timeMs = Date.now() - start;
+    result.lastError = getLastMongoError();
     if (result.connected) {
       const count = await WorkerModel.countDocuments();
       result.workerCount = count;

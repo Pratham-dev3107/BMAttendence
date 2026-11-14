@@ -81,6 +81,12 @@ export function isMongoConnected() {
   return !!(mongoose.connection && mongoose.connection.readyState === 1);
 }
 
+let lastMongoError = null;
+
+export function getLastMongoError() {
+  return lastMongoError;
+}
+
 export async function connectMongo(uri = process.env.MONGODB_URI || DEFAULT_MONGO_URI) {
   if (mongoose.connection && mongoose.connection.readyState === 1) {
     return mongoose.connection;
@@ -89,13 +95,20 @@ export async function connectMongo(uri = process.env.MONGODB_URI || DEFAULT_MONG
   if (!cached.promise) {
     const targetUri = uri || DEFAULT_MONGO_URI;
     cached.promise = mongoose.connect(targetUri, {
-      serverSelectionTimeoutMS: 5000,
-      connectTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 4000,
+      connectTimeoutMS: 4000,
       maxPoolSize: 10,
     }).then(m => {
+      lastMongoError = null;
       console.log('✅ Connected to MongoDB Atlas');
       return m.connection;
     }).catch(err => {
+      lastMongoError = {
+        message: err.message,
+        name: err.name,
+        code: err.code,
+        reason: err.reason
+      };
       cached.promise = null;
       console.error('❌ MongoDB Atlas connection error:', err.message);
       return null;
@@ -106,6 +119,7 @@ export async function connectMongo(uri = process.env.MONGODB_URI || DEFAULT_MONG
     cached.conn = await cached.promise;
     return cached.conn;
   } catch (err) {
+    lastMongoError = { message: err.message, name: err.name };
     cached.promise = null;
     return null;
   }
