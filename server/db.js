@@ -175,7 +175,11 @@ class Database {
       if (cloudSettings) {
         this.data.settings = { ...this.data.settings, ...cloudSettings.toObject() };
       } else {
-        await SettingModel.create({ key: 'main_settings', ...this.data.settings });
+        await SettingModel.findOneAndUpdate(
+          { key: 'main_settings' },
+          { $set: { key: 'main_settings', ...this.data.settings } },
+          { upsert: true, new: true }
+        );
       }
 
       // 2. Users
