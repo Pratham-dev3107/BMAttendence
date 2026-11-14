@@ -1,21 +1,17 @@
 {
   "users": [
     {
-      "_id": "6af804add87fab70e7dbac86",
-      "username": "admin",
-      "__v": 0,
       "id": "usr_admin",
-      "name": "System Admin",
+      "username": "admin",
       "password": "admin123",
+      "name": "System Admin",
       "role": "admin"
     },
     {
-      "_id": "6af804add87fab70e7dbac87",
-      "username": "guard",
-      "__v": 0,
       "id": "usr_guard",
-      "name": "Main Gate Security",
+      "username": "guard",
       "password": "guard123",
+      "name": "Main Gate Security",
       "role": "gatekeeper"
     }
   ],
@@ -30,66 +26,9 @@
     "weeklyOffDay": 0,
     "weeklyOffCutThreshold": 3,
     "monthlyOffCutThreshold": 4,
-    "monthlyMaxSundayCut": 2,
-    "_id": "6af804ae3476b365c393783b",
-    "key": "main_settings",
-    "__v": 0
+    "monthlyMaxSundayCut": 2
   },
   "workers": [],
-  "attendance": [
-    {
-      "_id": "6af804add87fab70e7dbac8d",
-      "id": "2ca46ed8-e1ed-4674-8dd7-93dd1393ce9d",
-      "__v": 0,
-      "currentStatus": "OUT",
-      "date": "2026-11-14",
-      "firstIn": "11:42:26",
-      "lastOut": "11:46:52",
-      "manualStatus": null,
-      "notes": "",
-      "overtimeHours": 0,
-      "punches": [
-        {
-          "id": "5edb45aa-89df-4ebd-8fa8-d7b6ed2176f8",
-          "type": "IN",
-          "time": "11:42:26",
-          "timestamp": 1794636746072,
-          "method": "MANUAL",
-          "markedBy": "Gatekeeper",
-          "_id": "6af804ae3476b365c393783c"
-        },
-        {
-          "id": "f968f5d8-fca6-4d28-9bbf-2987f0e23c5a",
-          "type": "OUT",
-          "time": "11:42:34",
-          "timestamp": 1794636754128,
-          "method": "MANUAL",
-          "markedBy": "Gatekeeper",
-          "_id": "6af804ae3476b365c393783d"
-        },
-        {
-          "id": "16ed82f6-c1f6-408e-90bf-d3021b67ab83",
-          "type": "IN",
-          "time": "11:46:50",
-          "timestamp": 1794637010350,
-          "method": "MANUAL",
-          "markedBy": "Gatekeeper",
-          "_id": "6af804ae3476b365c393783e"
-        },
-        {
-          "id": "1a18c5f9-5832-4d6f-a503-c26ef621149a",
-          "type": "OUT",
-          "time": "11:46:52",
-          "timestamp": 1794637012622,
-          "method": "MANUAL",
-          "markedBy": "Gatekeeper",
-          "_id": "6af804ae3476b365c393783f"
-        }
-      ],
-      "status": "PRESENT",
-      "totalHours": 0,
-      "workerId": "KRA-101"
-    }
-  ],
+  "attendance": [],
   "advances": []
 }
