@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Edit3, Check, Clock } from 'lucide-react';
 
 export default function ManualCorrectionModal({ item, isOpen, onClose, onSave }) {
@@ -10,8 +10,13 @@ export default function ManualCorrectionModal({ item, isOpen, onClose, onSave })
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Track previous open state & item to avoid wiping user edits on parent re-renders
+  const prevOpenRef = useRef(false);
+  const itemIdRef = useRef(null);
+
   useEffect(() => {
-    if (item) {
+    const currentItemId = item ? `${item.workerId || item.worker?.id}_${item.date}` : null;
+    if (isOpen && item && (!prevOpenRef.current || itemIdRef.current !== currentItemId)) {
       setStatus(item.status === 'P' ? 'PRESENT' : item.status === 'HD' ? 'HALF_DAY' : item.status === 'A' ? 'ABSENT' : item.status || 'PRESENT');
       setFirstIn(item.inTime || item.firstIn || '09:00:00');
       setLastOut(item.outTime || item.lastOut || '18:00:00');
@@ -19,13 +24,18 @@ export default function ManualCorrectionModal({ item, isOpen, onClose, onSave })
       setOvertimeHours(String(item.ot || item.overtimeHours || '0'));
       setNotes(item.notes || '');
     }
+    prevOpenRef.current = isOpen;
+    itemIdRef.current = currentItemId;
+  }, [isOpen, item]);
 
+  useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
     };
-    if (isOpen) window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [item, isOpen, onClose]);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !item) return null;
 
@@ -52,14 +62,14 @@ export default function ManualCorrectionModal({ item, isOpen, onClose, onSave })
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 select-none animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
           <div className="flex items-center space-x-2.5">
@@ -68,17 +78,23 @@ export default function ManualCorrectionModal({ item, isOpen, onClose, onSave })
             </div>
             <h3 className="text-base font-bold text-white">Manual Record Override</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer">
+          <button onClick={onClose} className="p-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          
-          <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-xs">
-            <p className="text-slate-400">Worker: <span className="font-bold text-white">{item.worker?.name || item.workerName}</span> ({item.workerId || item.worker?.id})</p>
-            <p className="text-slate-400 mt-0.5">Date: <span className="font-bold text-emerald-400">{item.date}</span></p>
+
+          <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-400 font-bold uppercase">{item.worker?.name || item.workerName || 'Worker'}</p>
+              <p className="text-sm font-extrabold text-white">{item.workerId || item.worker?.id}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-slate-400">Date</p>
+              <p className="text-xs font-mono font-bold text-indigo-400">{item.date}</p>
+            </div>
           </div>
 
           <div>
@@ -86,18 +102,18 @@ export default function ManualCorrectionModal({ item, isOpen, onClose, onSave })
               Attendance Status
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {['PRESENT', 'HALF_DAY', 'ABSENT'].map((s) => (
+              {['PRESENT', 'HALF_DAY', 'ABSENT'].map(st => (
                 <button
-                  key={s}
+                  key={st}
                   type="button"
-                  onClick={() => setStatus(s)}
-                  className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    status === s 
-                      ? s === 'PRESENT' ? 'bg-emerald-600 text-white' : s === 'HALF_DAY' ? 'bg-amber-600 text-white' : 'bg-rose-600 text-white'
-                      : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                  onClick={() => setStatus(st)}
+                  className={`py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${
+                    status === st 
+                      ? 'bg-indigo-600 border-indigo-500 text-white shadow-md' 
+                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
                   }`}
                 >
-                  {s === 'PRESENT' ? 'Present' : s === 'HALF_DAY' ? 'Half Day' : 'Absent'}
+                  {st === 'HALF_DAY' ? 'Half Day' : st === 'PRESENT' ? 'Present' : 'Absent'}
                 </button>
               ))}
             </div>

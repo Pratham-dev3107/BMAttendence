@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, UserPlus, Save, DollarSign, Briefcase, Phone, User } from 'lucide-react';
 
 export default function WorkerModal({ isOpen, onClose, onSave, editingWorker }) {
@@ -6,39 +6,52 @@ export default function WorkerModal({ isOpen, onClose, onSave, editingWorker }) 
     name: '',
     phone: '',
     department: 'Fabrication',
-    designation: 'Worker',
+    designation: 'Helper',
     wageType: 'daily',
     rate: 600
   });
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (editingWorker) {
-      setFormData({
-        name: editingWorker.name || '',
-        phone: editingWorker.phone || '',
-        department: editingWorker.department || 'Fabrication',
-        designation: editingWorker.designation || 'Worker',
-        wageType: editingWorker.wageType || 'daily',
-        rate: editingWorker.rate || 0
-      });
-    } else {
-      setFormData({
-        name: '',
-        phone: '',
-        department: 'Fabrication',
-        designation: 'Helper',
-        wageType: 'daily',
-        rate: 600
-      });
-    }
+  // Track previous open state & target worker to prevent background auto-refresh from wiping user inputs
+  const prevOpenRef = useRef(false);
+  const editingIdRef = useRef(null);
 
+  useEffect(() => {
+    // Only reset form values when opening freshly or when target worker ID changes
+    if (isOpen && (!prevOpenRef.current || editingIdRef.current !== editingWorker?.id)) {
+      if (editingWorker) {
+        setFormData({
+          name: editingWorker.name || '',
+          phone: editingWorker.phone || '',
+          department: editingWorker.department || 'Fabrication',
+          designation: editingWorker.designation || 'Worker',
+          wageType: editingWorker.wageType || 'daily',
+          rate: editingWorker.rate || 0
+        });
+      } else {
+        setFormData({
+          name: '',
+          phone: '',
+          department: 'Fabrication',
+          designation: 'Helper',
+          wageType: 'daily',
+          rate: 600
+        });
+      }
+    }
+    prevOpenRef.current = isOpen;
+    editingIdRef.current = editingWorker?.id || null;
+  }, [isOpen, editingWorker?.id]);
+
+  // Handle escape key independently without triggering form data reset
+  useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
     };
-    if (isOpen) window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [editingWorker, isOpen, onClose]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

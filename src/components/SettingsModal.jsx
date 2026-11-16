@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Settings, Save } from 'lucide-react';
 import { updateSettings } from '../utils/api';
 
@@ -13,9 +13,10 @@ export default function SettingsModal({ isOpen, onClose, currentSettings, onSett
     overtimeThresholdHours: 8.5
   });
   const [saving, setSaving] = useState(false);
+  const prevOpenRef = useRef(false);
 
   useEffect(() => {
-    if (currentSettings) {
+    if (isOpen && !prevOpenRef.current && currentSettings) {
       setFormData({
         companyName: currentSettings.companyName || 'Kranti Industries',
         shiftStart: currentSettings.shiftStart || '08:30',
@@ -26,13 +27,17 @@ export default function SettingsModal({ isOpen, onClose, currentSettings, onSett
         overtimeThresholdHours: currentSettings.overtimeThresholdHours ?? 8.5
       });
     }
+    prevOpenRef.current = isOpen;
+  }, [isOpen, currentSettings]);
 
+  useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
     };
-    if (isOpen) window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentSettings, isOpen, onClose]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
