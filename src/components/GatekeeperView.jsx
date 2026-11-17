@@ -92,29 +92,53 @@ export default function GatekeeperView({
         </button>
       </div>
 
-      {/* Floating Success Feedback Toast */}
+      {/* Floating Success / Warning Feedback Toast */}
       {lastPunchFeedback && (
-        <div className="bg-slate-900 border-2 border-emerald-500/80 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className={`border-2 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-300 ${
+          lastPunchFeedback.duplicatePrevented || lastPunchFeedback.alreadyPunched
+            ? 'bg-slate-900 border-amber-500/80 shadow-amber-500/10'
+            : 'bg-slate-900 border-emerald-500/80 shadow-emerald-500/10'
+        }`}>
           <div className="flex items-center space-x-3.5">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-md ${
-              lastPunchFeedback.punchType === 'IN' ? 'bg-emerald-500 text-slate-950' : 'bg-rose-500 text-white'
+              lastPunchFeedback.duplicatePrevented || lastPunchFeedback.alreadyPunched
+                ? 'bg-amber-500 text-slate-950'
+                : lastPunchFeedback.punchType === 'IN' 
+                  ? 'bg-emerald-500 text-slate-950' 
+                  : 'bg-rose-500 text-white'
             }`}>
-              {lastPunchFeedback.punchType === 'IN' ? <ArrowDownRight className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
+              {lastPunchFeedback.duplicatePrevented || lastPunchFeedback.alreadyPunched ? (
+                <Sparkles className="w-5 h-5 text-slate-950" />
+              ) : lastPunchFeedback.punchType === 'IN' ? (
+                <ArrowDownRight className="w-6 h-6" />
+              ) : (
+                <ArrowUpRight className="w-6 h-6" />
+              )}
             </div>
             <div>
               <p className="font-extrabold text-sm sm:text-base leading-snug">
-                {lastPunchFeedback.worker?.name} — <span className={lastPunchFeedback.punchType === 'IN' ? 'text-emerald-400' : 'text-rose-400'}>
-                  PUNCHED {lastPunchFeedback.punchType}
+                {lastPunchFeedback.worker?.name} — <span className={
+                  lastPunchFeedback.duplicatePrevented || lastPunchFeedback.alreadyPunched
+                    ? 'text-amber-400'
+                    : lastPunchFeedback.punchType === 'IN' ? 'text-emerald-400' : 'text-rose-400'
+                }>
+                  {lastPunchFeedback.duplicatePrevented || lastPunchFeedback.alreadyPunched
+                    ? 'ALREADY PUNCHED (WAIT 1 MIN)'
+                    : `PUNCHED ${lastPunchFeedback.punchType}`}
                 </span>
               </p>
               <p className="text-xs text-slate-300 font-mono">
-                {lastPunchFeedback.punchTime} • ID: {lastPunchFeedback.worker?.id}
+                {lastPunchFeedback.message || `${lastPunchFeedback.punchTime} • ID: ${lastPunchFeedback.worker?.id}`}
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center space-x-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg">
+          <span className={`inline-flex items-center space-x-1 text-xs font-bold px-2.5 py-1 rounded-lg border ${
+            lastPunchFeedback.duplicatePrevented || lastPunchFeedback.alreadyPunched
+              ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+              : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+          }`}>
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Success</span>
+            <span>{lastPunchFeedback.duplicatePrevented || lastPunchFeedback.alreadyPunched ? 'Protected' : 'Success'}</span>
           </span>
         </div>
       )}

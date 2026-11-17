@@ -8,8 +8,8 @@ import {
 import { playBeepSound, playPunchInSound, playPunchOutSound, playErrorSound, triggerHaptic } from '../utils/sound';
 
 export default function QRScannerModal({ isOpen, onClose, onPunchSuccess, workers = [] }) {
-  // Punch Mode: 'IN' (Morning gate) | 'OUT' (Evening gate) | 'AUTO'
-  const [punchMode, setPunchMode] = useState('IN');
+  // Punch Mode: 'AUTO' (Smart Auto In/Out toggle) | 'IN' | 'OUT'
+  const [punchMode, setPunchMode] = useState('AUTO');
   const [scanResult, setScanResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -147,11 +147,12 @@ export default function QRScannerModal({ isOpen, onClose, onPunchSuccess, worker
 
       playBeepSound();
 
-      // Submit punch with currently chosen punchMode: 'IN', 'OUT', or 'AUTO'
+      // Submit punch with currently chosen punchMode: 'AUTO', 'IN', or 'OUT'
       const result = await onPunchSuccess(workerId, punchMode, 'QR');
 
-      if (result.alreadyPunched) {
-        triggerHaptic([30, 30]);
+      if (result.duplicatePrevented || result.alreadyPunched) {
+        playErrorSound();
+        triggerHaptic([40, 40, 40]);
       } else if (result.punchType === 'IN') {
         playPunchInSound();
       } else {
@@ -159,8 +160,9 @@ export default function QRScannerModal({ isOpen, onClose, onPunchSuccess, worker
       }
 
       setScanResult({
-        success: true,
+        success: !result.duplicatePrevented,
         alreadyPunched: !!result.alreadyPunched,
+        duplicatePrevented: !!result.duplicatePrevented,
         message: result.message,
         worker: result.worker,
         punchType: result.punchType,
@@ -516,48 +518,54 @@ export default function QRScannerModal({ isOpen, onClose, onPunchSuccess, worker
           </div>
         </div>
 
-        {/* 🌟 PUNCH MODE SELECTOR (Check In / Check Out / Auto) */}
-        <div className="px-4 py-2.5 bg-slate-950 border-b border-slate-800/80 flex items-center justify-between gap-2">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Mode:</span>
+        {/* 🌟 PUNCH MODE SELECTOR (Auto / In / Out) */}
+        <div className="px-4 py-2 bg-slate-950 border-b border-slate-800/80 flex items-center justify-between gap-2">
+          <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center space-x-1">
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span>Mode:</span>
+          </span>
           
-          <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 flex-1 justify-end max-w-[280px]">
+          <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 flex-1 justify-end max-w-[320px]">
+            <button
+              type="button"
+              onClick={() => setPunchMode('AUTO')}
+              className={`flex-1 flex items-center justify-center space-x-1 py-1.5 px-2 rounded-lg text-xs font-black transition cursor-pointer ${
+                punchMode === 'AUTO'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="1st scan IN, 2nd scan OUT, 3rd scan IN (1-min double-punch protected)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>⚡ AUTO (IN/OUT)</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setPunchMode('IN')}
-              className={`flex-1 flex items-center justify-center space-x-1 py-1.5 px-2 rounded-lg text-xs font-black transition cursor-pointer ${
+              className={`flex items-center justify-center space-x-1 py-1.5 px-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
                 punchMode === 'IN'
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
                   : 'text-slate-400 hover:text-white'
               }`}
+              title="Force Check In Only"
             >
               <LogIn className="w-3.5 h-3.5" />
-              <span>CHECK IN</span>
+              <span>IN</span>
             </button>
 
             <button
               type="button"
               onClick={() => setPunchMode('OUT')}
-              className={`flex-1 flex items-center justify-center space-x-1 py-1.5 px-2 rounded-lg text-xs font-black transition cursor-pointer ${
+              className={`flex items-center justify-center space-x-1 py-1.5 px-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
                 punchMode === 'OUT'
                   ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
                   : 'text-slate-400 hover:text-white'
               }`}
+              title="Force Check Out Only"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>CHECK OUT</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPunchMode('AUTO')}
-              className={`py-1.5 px-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                punchMode === 'AUTO'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="Auto Toggle (3-min Cooldown)"
-            >
-              <span>AUTO</span>
+              <span>OUT</span>
             </button>
           </div>
         </div>

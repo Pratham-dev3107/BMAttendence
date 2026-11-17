@@ -133,7 +133,10 @@ export default function App() {
     setLastPunchFeedback({
       worker: result.worker,
       punchType: result.punchType,
-      punchTime: result.punchTime
+      punchTime: result.punchTime,
+      duplicatePrevented: !!result.duplicatePrevented,
+      alreadyPunched: !!result.alreadyPunched,
+      message: result.message
     });
 
     // Auto clear feedback after 5 seconds

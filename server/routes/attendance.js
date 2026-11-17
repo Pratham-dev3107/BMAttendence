@@ -15,13 +15,14 @@ function getNowIST() {
   return dayjs().tz('Asia/Kolkata');
 }
 
-// Helper to calculate hours & exact Overtime past 5:00 PM (17:00)
+// Helper to calculate hours, break/outside time, & exact Overtime
 function calculateAttendanceMetrics(punches, settings, dateStr) {
   if (!punches || punches.length === 0) {
     return {
       firstIn: null,
       lastOut: null,
       totalHours: 0,
+      outsideHours: 0,
       overtimeHours: 0,
       status: 'ABSENT',
       currentStatus: 'OUT'
@@ -36,34 +37,35 @@ function calculateAttendanceMetrics(punches, settings, dateStr) {
 
   let totalMilliseconds = 0;
   let inTime = null;
+  let totalOutsideMs = 0;
+  let outTime = null;
 
   for (const punch of sortedPunches) {
     if (punch.type === 'IN') {
       inTime = punch.timestamp;
+      // If worker was previously OUT, accumulate time spent outside
+      if (outTime !== null) {
+        totalOutsideMs += (punch.timestamp - outTime);
+        outTime = null;
+      }
     } else if (punch.type === 'OUT' && inTime !== null) {
+      // Worker just went OUT: accumulate working time from inTime
       totalMilliseconds += (punch.timestamp - inTime);
       inTime = null;
+      outTime = punch.timestamp;
     }
   }
 
+  // Net actual working hours (excluding breaks / outside time)
   const totalHours = Math.round((totalMilliseconds / (1000 * 60 * 60)) * 100) / 100;
+  const outsideHours = Math.round((totalOutsideMs / (1000 * 60 * 60)) * 100) / 100;
   
   const minFull = settings.fullDayMinHours || 8.5;
   const minHalf = settings.halfDayMinHours || 4.5;
-  const shiftEndTime = settings.shiftEnd || '17:00'; // 5:00 PM
 
-  // Calculate Overtime: Any work done past 17:00 (5:00 PM IST)
+  // Overtime: only net worked hours that exceed the full day shift threshold
   let overtimeHours = 0;
-  if (lastOutPunch && dateStr) {
-    const shiftEndTimestamp = dayjs.tz(`${dateStr} ${shiftEndTime}`, 'Asia/Kolkata').valueOf();
-    if (lastOutPunch.timestamp > shiftEndTimestamp && totalHours >= minHalf) {
-      const otMs = lastOutPunch.timestamp - shiftEndTimestamp;
-      overtimeHours = Math.round((otMs / (1000 * 60 * 60)) * 10) / 10;
-    }
-  }
-
-  // Fallback: If total hours exceeded shift duration threshold
-  if (overtimeHours === 0 && totalHours > minFull) {
+  if (totalHours > minFull) {
     overtimeHours = Math.round((totalHours - minFull) * 10) / 10;
   }
 
@@ -73,13 +75,14 @@ function calculateAttendanceMetrics(punches, settings, dateStr) {
   } else if (totalHours >= minHalf) {
     status = 'HALF_DAY';
   } else if (sortedPunches.some(p => p.type === 'IN')) {
-    status = 'PRESENT'; // Currently inside or working today
+    status = 'PRESENT'; // Active inside or worked today
   }
 
   return {
     firstIn: firstInPunch ? firstInPunch.time : null,
     lastOut: lastOutPunch ? lastOutPunch.time : null,
     totalHours,
+    outsideHours,
     overtimeHours: Math.max(0, overtimeHours),
     status,
     currentStatus: lastPunch.type // 'IN' or 'OUT'
@@ -107,6 +110,7 @@ router.get('/today', async (req, res) => {
       firstIn: metrics.firstIn,
       lastOut: metrics.lastOut,
       totalHours: metrics.totalHours,
+      outsideHours: metrics.outsideHours,
       overtimeHours: metrics.overtimeHours,
       status: record?.manualStatus || (punches.length === 0 ? 'ABSENT' : metrics.status),
       currentStatus: metrics.currentStatus, // 'IN' or 'OUT'
@@ -175,65 +179,65 @@ router.post('/punch', async (req, res) => {
 
     let punchType = type; // Can be 'IN', 'OUT', or 'AUTO'
 
-    // 1. Explicit 'IN' mode (Morning arrival)
-    if (punchType === 'IN') {
-      if (lastPunch && lastPunch.type === 'IN') {
-        const secondsSince = Math.floor((timestamp - lastPunch.timestamp) / 1000);
-        if (secondsSince < 600 && !force) {
-          return res.json({
-            success: true,
-            alreadyPunched: true,
-            message: `${worker.name} is already punched IN today at ${lastPunch.time}`,
-            punchType: 'IN',
-            punchTime: lastPunch.time,
-            worker,
-            record
-          });
-        }
+    // 🛡️ ANTI-DOUBLE-SCAN DEBOUNCE: Protect against rapid re-scanning within 60 seconds (1 minute)
+    const COOLDOWN_SECONDS = 60;
+    if (lastPunch && !force) {
+      const secondsSinceLast = Math.floor((timestamp - lastPunch.timestamp) / 1000);
+      if (secondsSinceLast < COOLDOWN_SECONDS) {
+        return res.json({
+          success: true,
+          alreadyPunched: true,
+          duplicatePrevented: true,
+          message: `⚠️ ${worker.name} already punched ${lastPunch.type} just now at ${lastPunch.time}. Please wait 1 minute before next punch.`,
+          punchType: lastPunch.type,
+          punchTime: lastPunch.time,
+          worker,
+          record
+        });
+      }
+    }
+
+    // Auto In/Out toggle (1st scan IN, 2nd scan OUT, 3rd scan IN, 4th scan OUT)
+    if (punchType === 'AUTO' || !punchType) {
+      if (!lastPunch) {
+        punchType = 'IN';
+      } else {
+        punchType = lastPunch.type === 'IN' ? 'OUT' : 'IN';
       }
     } 
-    // 2. Explicit 'OUT' mode (Evening departure)
+    // Explicit 'IN' mode (Morning arrival override)
+    else if (punchType === 'IN') {
+      if (lastPunch && lastPunch.type === 'IN' && !force) {
+        return res.json({
+          success: true,
+          alreadyPunched: true,
+          duplicatePrevented: true,
+          message: `${worker.name} is already punched IN today at ${lastPunch.time}`,
+          punchType: 'IN',
+          punchTime: lastPunch.time,
+          worker,
+          record
+        });
+      }
+    } 
+    // Explicit 'OUT' mode (Evening departure override)
     else if (punchType === 'OUT') {
       if (record.punches.length === 0 && !force) {
         return res.status(400).json({ 
           error: `${worker.name} has no IN punch today. Punch IN first before punching OUT.` 
         });
       }
-      if (lastPunch && lastPunch.type === 'OUT') {
-        const secondsSince = Math.floor((timestamp - lastPunch.timestamp) / 1000);
-        if (secondsSince < 600 && !force) {
-          return res.json({
-            success: true,
-            alreadyPunched: true,
-            message: `${worker.name} is already punched OUT today at ${lastPunch.time}`,
-            punchType: 'OUT',
-            punchTime: lastPunch.time,
-            worker,
-            record
-          });
-        }
-      }
-    } 
-    // 3. 'AUTO' mode with strict 3-minute cooldown
-    else {
-      if (!lastPunch) {
-        punchType = 'IN';
-      } else {
-        const secondsSinceLast = Math.floor((timestamp - lastPunch.timestamp) / 1000);
-
-        if (secondsSinceLast < 180 && !force) {
-          return res.json({
-            success: true,
-            alreadyPunched: true,
-            message: `${worker.name} already punched ${lastPunch.type} just now at ${lastPunch.time}`,
-            punchType: lastPunch.type,
-            punchTime: lastPunch.time,
-            worker,
-            record
-          });
-        }
-
-        punchType = lastPunch.type === 'IN' ? 'OUT' : 'IN';
+      if (lastPunch && lastPunch.type === 'OUT' && !force) {
+        return res.json({
+          success: true,
+          alreadyPunched: true,
+          duplicatePrevented: true,
+          message: `${worker.name} is already punched OUT today at ${lastPunch.time}`,
+          punchType: 'OUT',
+          punchTime: lastPunch.time,
+          worker,
+          record
+        });
       }
     }
 

@@ -260,7 +260,16 @@ export default function AdminView({
                       </td>
 
                       <td className="py-3 px-3 font-bold text-slate-800 font-mono">
-                        {item.totalHours > 0 ? `${item.totalHours}h` : '-'}
+                        {item.totalHours > 0 ? (
+                          <div>
+                            <span>{item.totalHours}h</span>
+                            {item.outsideHours > 0 && (
+                              <span className="block text-[10px] text-amber-600 font-medium font-sans">
+                                (-{item.outsideHours}h outside)
+                              </span>
+                            )}
+                          </div>
+                        ) : '-'}
                       </td>
 
                       <td className="py-3 px-3">

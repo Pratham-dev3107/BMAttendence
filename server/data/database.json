@@ -37,40 +37,70 @@
   },
   "workers": [
     {
-      "_id": "6af80cf2d87fab70e7dbacb1",
+      "_id": "6af815a3d87fab70e7dbacce",
       "id": "KRA-101",
+      "__v": 0,
       "createdAt": "2026-11-14",
-      "department": "Production",
-      "designation": "Machine Operator",
-      "name": "Ramesh Kumar",
-      "phone": "9876543210",
+      "department": "Fabrication",
+      "designation": "Helper",
+      "name": "Abc",
+      "phone": "9501147380",
       "photo": "",
-      "rate": 650,
+      "rate": 600,
       "status": "active",
       "wageType": "daily"
     },
     {
-      "_id": "6af80cf2d87fab70e7dbacb2",
+      "_id": "6af8162bd87fab70e7dbaccf",
       "id": "KRA-102",
-      "createdAt": "2026-11-14",
-      "department": "Maintenance",
-      "designation": "Technician",
-      "name": "Suresh Sharma",
-      "phone": "9812345678",
-      "photo": "",
-      "rate": 550,
-      "status": "active",
-      "wageType": "daily"
-    },
-    {
-      "_id": "6af80e8ad87fab70e7dbacb8",
-      "id": "KRA-104",
       "__v": 0,
       "createdAt": "2026-11-14",
       "department": "Fabrication",
       "designation": "Helper",
       "name": "abb",
       "phone": "9601147389",
+      "photo": "",
+      "rate": 600,
+      "status": "active",
+      "wageType": "daily"
+    },
+    {
+      "_id": "6af817a3d87fab70e7dbace7",
+      "id": "KRA-103",
+      "__v": 0,
+      "createdAt": "2026-11-14",
+      "department": "Fabrication",
+      "designation": "Helper",
+      "name": "Jitender",
+      "phone": "9501147389",
+      "photo": "",
+      "rate": 600,
+      "status": "active",
+      "wageType": "daily"
+    },
+    {
+      "_id": "6af81bc0d87fab70e7dbacf8",
+      "id": "KRA-104",
+      "__v": 0,
+      "createdAt": "2026-11-14",
+      "department": "Fabrication",
+      "designation": "Helper",
+      "name": "deepak",
+      "phone": "950116677",
+      "photo": "",
+      "rate": 600,
+      "status": "active",
+      "wageType": "daily"
+    },
+    {
+      "_id": "6afac84b1020e76d498b4963",
+      "id": "KRA-105",
+      "__v": 0,
+      "createdAt": "2026-11-16",
+      "department": "Fabrication",
+      "designation": "Helperfff",
+      "name": "tg",
+      "phone": "9501147689",
       "photo": "",
       "rate": 600,
       "status": "active",
@@ -174,6 +204,53 @@
       "status": "PRESENT",
       "totalHours": 0,
       "workerId": "KRA-102"
+    },
+    {
+      "id": "63fae896-b00b-440c-b13f-2dbb691307b4",
+      "workerId": "KRA-101",
+      "date": "2026-11-17",
+      "punches": [
+        {
+          "id": "65802368-00d7-44ce-bd2b-2d7ee808e2cd",
+          "type": "IN",
+          "time": "09:00:00",
+          "timestamp": 1794886200000,
+          "method": "QR",
+          "markedBy": "Gatekeeper"
+        },
+        {
+          "id": "33136356-adc1-4ce6-bcb6-5e7a3d72116f",
+          "type": "OUT",
+          "time": "10:00:00",
+          "timestamp": 1794889800000,
+          "method": "QR",
+          "markedBy": "Gatekeeper"
+        },
+        {
+          "id": "190348da-fe60-4940-a86c-be021560cc07",
+          "type": "IN",
+          "time": "11:00:00",
+          "timestamp": 1794893400000,
+          "method": "QR",
+          "markedBy": "Gatekeeper"
+        },
+        {
+          "id": "a239fc98-ff7b-4643-8fbc-2e443b746604",
+          "type": "OUT",
+          "time": "18:00:00",
+          "timestamp": 1794918600000,
+          "method": "QR",
+          "markedBy": "Gatekeeper"
+        }
+      ],
+      "manualStatus": null,
+      "notes": "",
+      "firstIn": "09:00:00",
+      "lastOut": "18:00:00",
+      "totalHours": 8,
+      "overtimeHours": 0,
+      "status": "HALF_DAY",
+      "currentStatus": "OUT"
     }
   ],
   "advances": []
