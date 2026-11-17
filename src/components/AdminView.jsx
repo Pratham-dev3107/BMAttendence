@@ -6,6 +6,7 @@ import {
   Search, RefreshCw, QrCode 
 } from 'lucide-react';
 import MonthlySheet from './MonthlySheet';
+import BulkPrintBadgesModal from './BulkPrintBadgesModal';
 import { fetchWorkers, deleteWorker } from '../utils/api';
 
 export default function AdminView({ 
@@ -21,6 +22,7 @@ export default function AdminView({
   const [workersList, setWorkersList] = useState([]);
   const [workersLoading, setWorkersLoading] = useState(false);
   const [searchWorker, setSearchWorker] = useState('');
+  const [isBulkPrintOpen, setIsBulkPrintOpen] = useState(false);
 
   const stats = todayData?.stats || {
     totalWorkers: 0,
@@ -320,13 +322,24 @@ export default function AdminView({
               />
             </div>
 
-            <button
-              onClick={onOpenAddWorker}
-              className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add New Worker</span>
-            </button>
+            <div className="flex items-center space-x-2.5 w-full sm:w-auto">
+              <button
+                onClick={() => setIsBulkPrintOpen(true)}
+                className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition cursor-pointer shadow-sm shadow-indigo-600/20 active:scale-95"
+                title="Print All Worker QR Badges on A4 Sheets (3 Cards per page with cut lines)"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print All Badges (A4)</span>
+              </button>
+
+              <button
+                onClick={onOpenAddWorker}
+                className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition cursor-pointer active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add New Worker</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -393,6 +406,14 @@ export default function AdminView({
 
         </div>
       )}
+
+      {/* Bulk Print A4 Badges Modal */}
+      <BulkPrintBadgesModal
+        isOpen={isBulkPrintOpen}
+        onClose={() => setIsBulkPrintOpen(false)}
+        workers={workersList}
+        companyName="Kranti Industries"
+      />
 
     </div>
   );

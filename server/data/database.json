@@ -37,6 +37,7 @@
   },
   "workers": [
     {
+      "_id": "6afbe9afccc16394a4a6e266",
       "id": "KRA-101",
       "name": "Ajay Mishra",
       "phone": "",
@@ -46,9 +47,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e267",
       "id": "KRA-102",
       "name": "Sunil (B/V)",
       "phone": "",
@@ -58,9 +61,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e268",
       "id": "KRA-103",
       "name": "Deepak Kumar",
       "phone": "",
@@ -70,9 +75,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e269",
       "id": "KRA-104",
       "name": "Surender (CNC Prog.)",
       "phone": "",
@@ -82,9 +89,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e26a",
       "id": "KRA-105",
       "name": "Gagandeep (VMC)",
       "phone": "",
@@ -94,9 +103,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e26b",
       "id": "KRA-106",
       "name": "Madan Lal",
       "phone": "",
@@ -106,9 +117,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e26c",
       "id": "KRA-107",
       "name": "Amrit Lal Sharma",
       "phone": "",
@@ -118,9 +131,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e26d",
       "id": "KRA-108",
       "name": "Dilip Ray",
       "phone": "",
@@ -130,9 +145,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e26e",
       "id": "KRA-109",
       "name": "Vicky",
       "phone": "",
@@ -142,9 +159,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e26f",
       "id": "KRA-110",
       "name": "Ramjit",
       "phone": "",
@@ -154,9 +173,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e270",
       "id": "KRA-111",
       "name": "Vishal",
       "phone": "",
@@ -166,9 +187,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e271",
       "id": "KRA-112",
       "name": "Vijay (Gearman)",
       "phone": "",
@@ -178,9 +201,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e272",
       "id": "KRA-113",
       "name": "Munna",
       "phone": "",
@@ -190,9 +215,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e273",
       "id": "KRA-114",
       "name": "Vijay Sah",
       "phone": "",
@@ -202,9 +229,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e274",
       "id": "KRA-115",
       "name": "Guddu Yadav",
       "phone": "",
@@ -214,9 +243,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e275",
       "id": "KRA-116",
       "name": "Balwinder Kumar",
       "phone": "",
@@ -226,9 +257,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e276",
       "id": "KRA-117",
       "name": "Vivek",
       "phone": "",
@@ -238,9 +271,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e277",
       "id": "KRA-118",
       "name": "Balwinder Singh",
       "phone": "",
@@ -250,9 +285,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e278",
       "id": "KRA-119",
       "name": "Kreena",
       "phone": "",
@@ -262,9 +299,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e279",
       "id": "KRA-120",
       "name": "Gyanwati",
       "phone": "",
@@ -274,9 +313,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e27a",
       "id": "KRA-121",
       "name": "Rupa Kumari",
       "phone": "",
@@ -286,9 +327,11 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     },
     {
+      "_id": "6afbe9afccc16394a4a6e27b",
       "id": "KRA-122",
       "name": "Anjali",
       "phone": "",
@@ -298,7 +341,8 @@
       "rate": 600,
       "photo": "",
       "status": "active",
-      "createdAt": "2026-11-17"
+      "createdAt": "2026-11-17",
+      "__v": 0
     }
   ],
   "attendance": [],
